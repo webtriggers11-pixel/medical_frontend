@@ -6,13 +6,14 @@ interface ModalProps {
   title?: string;
   children: ReactNode;
   footer?: ReactNode;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
 }
 
 const sizeClasses = {
   sm: 'max-w-md',
   md: 'max-w-lg',
   lg: 'max-w-2xl',
+  xl: 'max-w-4xl',
 };
 
 export function Modal({ open, onClose, title, children, footer, size = 'md' }: ModalProps) {
@@ -54,7 +55,7 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }: M
             </button>
           </div>
         )}
-        <div className="px-6 py-5">{children}</div>
+        <div className="px-6 py-5 max-h-[70vh] overflow-y-auto">{children}</div>
         {footer && (
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-slate-50/50 rounded-b-2xl">
             {footer}

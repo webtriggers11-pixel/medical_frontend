@@ -118,3 +118,27 @@ html, body {
 .focus-ring:focus-visible {
   box-shadow: 0 0 0 2px white, 0 0 0 4px var(--color-primary-500);
 }
+
+/* react-day-picker — themed to the primary brand colour */
+.rdp-root {
+  --rdp-accent-color: var(--color-primary-600);
+  --rdp-accent-background-color: var(--color-primary-50);
+  --rdp-today-color: var(--color-primary-600);
+  --rdp-day-width: 2.4rem;
+  --rdp-day-height: 2.4rem;
+  --rdp-day_button-width: 2.1rem;
+  --rdp-day_button-height: 2.1rem;
+  --rdp-day_button-border-radius: 0.6rem;
+  --rdp-selected-border: none;
+  font-size: 0.85rem;
+  color: var(--color-slate-700, #334155);
+}
+.rdp-root .rdp-day_button:hover {
+  background-color: var(--color-primary-50);
+}
+.rdp-root .rdp-chevron {
+  fill: var(--color-primary-600);
+}
+.rdp-root .rdp-dropdowns select {
+  font-weight: 600;
+}

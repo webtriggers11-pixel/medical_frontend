@@ -10,9 +10,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import type { Role } from '../../types/auth.types';
 
 const roleBadgeVariant: Record<Role, 'danger' | 'primary' | 'warning' | 'default'> = {
-  SUPER_ADMIN: 'danger',
   ADMIN: 'primary',
-  MANAGER: 'warning',
   USER: 'default',
 };
 
