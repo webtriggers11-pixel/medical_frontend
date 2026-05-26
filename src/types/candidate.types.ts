@@ -16,6 +16,8 @@ export interface Candidate {
   pincode: string | null;
   email: string | null;
   panNumber: string | null;
+  isActive: boolean;
+  isDeleted: boolean;
   createdById: string | null;
   createdAt: string;
   updatedAt: string;
