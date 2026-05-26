@@ -81,8 +81,8 @@ export function BulkUploadModal({ open, onClose }: BulkUploadModalProps) {
           <>
             <p className="text-sm text-slate-500">
               Upload a CSV with columns{' '}
-              <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">zone, city, store, name, employeeCode, mobileNumber, gender, age, candidateType, dateOfJoining, pincode, email, panNumber</code>.
-              Required: name, employeeCode, mobileNumber, gender, age, candidateType, dateOfJoining. Need the format?{' '}
+              <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">storeId, name, employeeCode, mobile, gender, age, candidateType, doj, pincode, email, panNumber</code>.
+              All required except <code className="text-xs bg-slate-100 px-1 py-0.5 rounded">panNumber</code>. Need the format?{' '}
               <button
                 type="button"
                 onClick={() => candidatesService.downloadTemplate()}
@@ -141,7 +141,7 @@ export function BulkUploadModal({ open, onClose }: BulkUploadModalProps) {
                   {result.errors.map((err, i) => (
                     <div key={i} className="px-4 py-2 text-sm flex items-start justify-between gap-3">
                       <span className="text-slate-700">
-                        Row {err.row} &middot; <span className="text-slate-500">{err.mobileNumber}</span>
+                        Row {err.row} &middot; <span className="text-slate-500">{err.mobile}</span>
                       </span>
                       <span className="text-xs text-red-500 text-right shrink-0">{err.reason}</span>
                     </div>

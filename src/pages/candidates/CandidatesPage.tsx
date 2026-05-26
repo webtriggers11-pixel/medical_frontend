@@ -13,9 +13,16 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { format } from 'date-fns';
 import type { CandidateType, Gender } from '../../types/candidate.types';
 
-const typeVariant: Record<CandidateType, 'primary' | 'success'> = {
+const typeVariant: Record<CandidateType, 'primary' | 'success' | 'warning'> = {
+  NEW_JOINER: 'success',
   EXISTING: 'primary',
-  NEW: 'success',
+  ANNUAL: 'warning',
+};
+
+const typeLabel: Record<CandidateType, string> = {
+  NEW_JOINER: 'New Joiner',
+  EXISTING: 'Existing',
+  ANNUAL: 'Annual',
 };
 
 const genderLabel: Record<Gender, string> = {
@@ -63,9 +70,9 @@ export function CandidatesPage() {
     return (
       c.name.toLowerCase().includes(q) ||
       c.employeeCode.toLowerCase().includes(q) ||
-      c.mobileNumber.includes(q) ||
+      c.mobile.includes(q) ||
       (c.email ?? '').toLowerCase().includes(q) ||
-      (c.store ?? '').toLowerCase().includes(q)
+      (c.store?.name ?? '').toLowerCase().includes(q)
     );
   });
 
@@ -135,7 +142,7 @@ export function CandidatesPage() {
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Gender</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Age</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Type</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Location</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Store</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Date of Joining</th>
                 </tr>
               </thead>
@@ -147,24 +154,22 @@ export function CandidatesPage() {
                         <Avatar name={c.name} size="sm" />
                         <div>
                           <p className="font-medium text-slate-900">{c.name}</p>
-                          <p className="text-xs text-slate-500">{c.email || c.store || '—'}</p>
+                          <p className="text-xs text-slate-500">{c.email}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-5 py-3.5 text-slate-600">{c.employeeCode}</td>
-                    <td className="px-5 py-3.5 text-slate-600">{c.mobileNumber}</td>
+                    <td className="px-5 py-3.5 text-slate-600">{c.mobile}</td>
                     <td className="px-5 py-3.5 text-slate-600">{genderLabel[c.gender]}</td>
                     <td className="px-5 py-3.5 text-slate-600">{c.age}</td>
                     <td className="px-5 py-3.5">
                       <Badge variant={typeVariant[c.candidateType]} size="sm">
-                        {c.candidateType === 'EXISTING' ? 'Existing' : 'New'}
+                        {typeLabel[c.candidateType]}
                       </Badge>
                     </td>
-                    <td className="px-5 py-3.5 text-slate-600">
-                      {[c.city, c.zone].filter(Boolean).join(', ') || '—'}
-                    </td>
+                    <td className="px-5 py-3.5 text-slate-600">{c.store?.name ?? '—'}</td>
                     <td className="px-5 py-3.5 text-slate-500">
-                      {format(new Date(c.dateOfJoining), 'd MMM, yyyy')}
+                      {format(new Date(c.doj), 'd MMM, yyyy')}
                     </td>
                   </tr>
                 ))}

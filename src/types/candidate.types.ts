@@ -1,46 +1,42 @@
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
-export type CandidateType = 'EXISTING' | 'NEW';
+export type CandidateType = 'NEW_JOINER' | 'EXISTING' | 'ANNUAL';
 
 export interface Candidate {
   id: string;
-  zone: string | null;
-  city: string | null;
-  store: string | null;
+  storeId: string;
+  companyId: string;
   name: string;
   employeeCode: string;
-  mobileNumber: string;
+  mobile: string;
   gender: Gender;
   age: number;
   candidateType: CandidateType;
-  dateOfJoining: string;
-  pincode: string | null;
-  email: string | null;
+  doj: string;
+  pincode: string;
+  email: string;
   panNumber: string | null;
   isActive: boolean;
-  isDeleted: boolean;
-  createdById: string | null;
   createdAt: string;
-  updatedAt: string;
+  store?: { id: string; name: string; storeCode: string } | null;
+  company?: { id: string; name: string; code: string } | null;
 }
 
 export interface CreateCandidateInput {
-  zone?: string;
-  city?: string;
-  store?: string;
+  storeId: string;
   name: string;
   employeeCode: string;
-  mobileNumber: string;
+  mobile: string;
   gender: Gender;
   age: number;
   candidateType: CandidateType;
-  dateOfJoining: string; // ISO date (YYYY-MM-DD)
-  pincode?: string;
-  email?: string;
+  doj: string; // ISO date (YYYY-MM-DD)
+  pincode: string;
+  email: string;
   panNumber?: string;
 }
 
 export interface BulkUploadResult {
   created: number;
   skipped: number;
-  errors: { row: number; mobileNumber: string; reason: string }[];
+  errors: { row: number; mobile: string; reason: string }[];
 }
