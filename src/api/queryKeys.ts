@@ -6,4 +6,8 @@ export const queryKeys = {
     all: ['users'] as const,
     byId: (id: string) => ['users', id] as const,
   },
+  candidates: {
+    all: ['candidates'] as const,
+    byId: (id: string) => ['candidates', id] as const,
+  },
 };

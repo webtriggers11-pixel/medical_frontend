@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { OtpInput } from '../../../components/ui/OtpInput';
 import { useVerifyOtp } from '../hooks/useVerifyOtp';
 import { useInitiateRegister } from '../hooks/useInitiateRegister';
+import { Button } from '../../../components/ui/Button';
+import type { AxiosError } from 'axios';
 
 interface OtpStepProps {
   email: string;
@@ -10,22 +12,37 @@ interface OtpStepProps {
   onBack: () => void;
 }
 
-export const OtpStep = ({ email, resendAllowedAt, onSuccess, onBack }: OtpStepProps) => {
+function useCountdown(targetIso: string) {
+  const [seconds, setSeconds] = useState(0);
+
+  useEffect(() => {
+    const calcRemaining = () =>
+      Math.max(0, Math.ceil((new Date(targetIso).getTime() - Date.now()) / 1000));
+
+    // Set initial value asynchronously to satisfy React Compiler purity rules
+    const immediate = setTimeout(() => setSeconds(calcRemaining()), 0);
+
+    const timer = setInterval(() => {
+      const remaining = calcRemaining();
+      setSeconds(remaining);
+      if (remaining <= 0) clearInterval(timer);
+    }, 1000);
+
+    return () => {
+      clearTimeout(immediate);
+      clearInterval(timer);
+    };
+  }, [targetIso]);
+
+  return seconds;
+}
+
+export function OtpStep({ email, resendAllowedAt: initialResendAt, onSuccess, onBack }: OtpStepProps) {
   const [otp, setOtp] = useState('');
-  const [countdown, setCountdown] = useState(0);
+  const [resendTarget, setResendTarget] = useState(initialResendAt);
+  const countdown = useCountdown(resendTarget);
   const { mutate: verifyOtp, isPending, error } = useVerifyOtp();
   const { mutate: resend, isPending: isResending } = useInitiateRegister();
-
-  useEffect(() => {
-    const remaining = Math.max(0, Math.ceil((new Date(resendAllowedAt).getTime() - Date.now()) / 1000));
-    setCountdown(remaining);
-  }, [resendAllowedAt]);
-
-  useEffect(() => {
-    if (countdown <= 0) return;
-    const timer = setInterval(() => setCountdown((c) => Math.max(0, c - 1)), 1000);
-    return () => clearInterval(timer);
-  }, [countdown]);
 
   const handleVerify = () => {
     if (otp.length !== 6) return;
@@ -36,40 +53,44 @@ export const OtpStep = ({ email, resendAllowedAt, onSuccess, onBack }: OtpStepPr
     resend(email, {
       onSuccess: (data) => {
         setOtp('');
-        const remaining = Math.ceil((new Date(data.resendAllowedAt).getTime() - Date.now()) / 1000);
-        setCountdown(remaining);
+        setResendTarget(data.resendAllowedAt);
       },
     });
   };
 
-  const apiError = (error as any)?.response?.data?.message;
+  const apiError = (error as AxiosError<{ message?: string }>)?.response?.data?.message;
 
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold text-slate-900">Check your email</h2>
-        <p className="text-sm text-slate-500 mt-1">
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Check your email</h2>
+        <p className="text-slate-500 mt-2">
           We sent a 6-digit code to{' '}
           <span className="font-medium text-slate-700">{email}</span>
         </p>
       </div>
 
-      <div className="space-y-5">
+      <div className="space-y-6">
         <OtpInput value={otp} onChange={setOtp} disabled={isPending} />
 
         {apiError && (
-          <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3">
+          <div className="flex items-center gap-2.5 rounded-xl bg-red-50 border border-red-100 px-4 py-3">
+            <svg className="w-4 h-4 text-red-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
             <p className="text-sm text-red-700">{apiError}</p>
           </div>
         )}
 
-        <button
+        <Button
           onClick={handleVerify}
-          disabled={otp.length !== 6 || isPending}
-          className="w-full flex justify-center items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+          disabled={otp.length !== 6}
+          loading={isPending}
+          fullWidth
+          size="lg"
         >
-          {isPending ? 'Verifying...' : 'Verify code'}
-        </button>
+          Verify code
+        </Button>
 
         <div className="text-center">
           {countdown > 0 ? (
@@ -81,7 +102,7 @@ export const OtpStep = ({ email, resendAllowedAt, onSuccess, onBack }: OtpStepPr
             <button
               onClick={handleResend}
               disabled={isResending}
-              className="text-sm font-semibold text-blue-600 hover:text-blue-700 disabled:opacity-60 transition-colors"
+              className="text-sm font-semibold text-primary-600 hover:text-primary-700 disabled:opacity-60 transition-colors"
             >
               {isResending ? 'Sending...' : 'Resend code'}
             </button>
@@ -90,11 +111,14 @@ export const OtpStep = ({ email, resendAllowedAt, onSuccess, onBack }: OtpStepPr
 
         <button
           onClick={onBack}
-          className="w-full text-sm text-slate-500 hover:text-slate-700 transition-colors"
+          className="w-full flex items-center justify-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
         >
-          ← Use a different email
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+          </svg>
+          Use a different email
         </button>
       </div>
     </div>
   );
-};
+}

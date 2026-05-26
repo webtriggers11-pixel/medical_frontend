@@ -1,0 +1,42 @@
+import api from '../api/axios.instance';
+import type { ApiResponse } from '../types/auth.types';
+import type {
+  Candidate,
+  CreateCandidateInput,
+  BulkUploadResult,
+} from '../types/candidate.types';
+
+export const candidatesService = {
+  getAll: async (): Promise<Candidate[]> => {
+    const res = await api.get<ApiResponse<Candidate[]>>('/candidates');
+    return res.data.data;
+  },
+
+  create: async (input: CreateCandidateInput): Promise<Candidate> => {
+    const res = await api.post<ApiResponse<Candidate>>('/candidates', input);
+    return res.data.data;
+  },
+
+  bulkUpload: async (file: File): Promise<BulkUploadResult> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await api.post<ApiResponse<BulkUploadResult>>(
+      '/candidates/bulk',
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return res.data.data;
+  },
+
+  downloadTemplate: async (): Promise<void> => {
+    const res = await api.get('/candidates/template', { responseType: 'blob' });
+    const url = window.URL.createObjectURL(new Blob([res.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'candidate-bulk-upload-template.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
+};
