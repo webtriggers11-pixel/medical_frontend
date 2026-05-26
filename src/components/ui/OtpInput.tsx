@@ -1,61 +1,80 @@
-import { useRef } from 'react';
-import type { KeyboardEvent, ClipboardEvent } from 'react';
+import { useRef, type KeyboardEvent, type ClipboardEvent } from 'react';
 
 interface OtpInputProps {
+  length?: number;
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
 }
 
-export const OtpInput = ({ value, onChange, disabled }: OtpInputProps) => {
+export function OtpInput({ length = 6, value, onChange, disabled }: OtpInputProps) {
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
-  const digits = value.padEnd(6, '').split('').slice(0, 6);
+  const digits = value.split('').concat(Array(length).fill('')).slice(0, length);
 
-  const updateDigit = (index: number, digit: string) => {
-    const next = digits.map((d, i) => (i === index ? digit : d));
-    onChange(next.join('').replace(/\s/g, ''));
+  const focusInput = (index: number) => {
+    inputsRef.current[index]?.focus();
+  };
+
+  const handleChange = (index: number, char: string) => {
+    const digit = char.replace(/\D/g, '').slice(-1);
+    const arr = [...digits];
+    arr[index] = digit;
+    onChange(arr.join('').replace(/[^\d]/g, ''));
+    if (digit && index < length - 1) {
+      focusInput(index + 1);
+    }
   };
 
   const handleKeyDown = (index: number, e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Backspace' && !digits[index] && index > 0) {
-      inputsRef.current[index - 1]?.focus();
+    if (e.key === 'Backspace') {
+      if (!digits[index] && index > 0) {
+        focusInput(index - 1);
+        const arr = [...digits];
+        arr[index - 1] = '';
+        onChange(arr.join(''));
+      } else {
+        const arr = [...digits];
+        arr[index] = '';
+        onChange(arr.join(''));
+      }
+    } else if (e.key === 'ArrowLeft' && index > 0) {
+      focusInput(index - 1);
+    } else if (e.key === 'ArrowRight' && index < length - 1) {
+      focusInput(index + 1);
     }
-    if (e.key === 'ArrowLeft' && index > 0) inputsRef.current[index - 1]?.focus();
-    if (e.key === 'ArrowRight' && index < 5) inputsRef.current[index + 1]?.focus();
-  };
-
-  const handleChange = (index: number, val: string) => {
-    const digit = val.replace(/\D/g, '').slice(-1);
-    updateDigit(index, digit);
-    if (digit && index < 5) inputsRef.current[index + 1]?.focus();
   };
 
   const handlePaste = (e: ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
-    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, length);
     onChange(pasted);
-    const focusIndex = Math.min(pasted.length, 5);
-    inputsRef.current[focusIndex]?.focus();
+    focusInput(Math.min(pasted.length, length - 1));
   };
 
   return (
-    <div className="flex gap-3 justify-center">
-      {Array.from({ length: 6 }).map((_, i) => (
+    <div className="flex items-center justify-center gap-2.5">
+      {digits.map((digit, i) => (
         <input
           key={i}
           ref={(el) => { inputsRef.current[i] = el; }}
           type="text"
           inputMode="numeric"
           maxLength={1}
-          value={digits[i] === ' ' ? '' : digits[i] || ''}
+          value={digit}
           disabled={disabled}
           onChange={(e) => handleChange(i, e.target.value)}
           onKeyDown={(e) => handleKeyDown(i, e)}
           onPaste={handlePaste}
-          className="w-12 h-14 text-center text-xl font-bold border-2 rounded-lg outline-none transition-colors
-            border-slate-200 focus:border-blue-500 text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
+          onFocus={(e) => e.target.select()}
+          className={`
+            w-12 h-14 text-center text-xl font-bold rounded-xl border
+            transition-all duration-200
+            focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500
+            disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-50
+            ${digit ? 'border-primary-300 bg-primary-50/30 text-slate-900' : 'border-border bg-surface text-slate-900'}
+          `}
         />
       ))}
     </div>
   );
-};
+}
