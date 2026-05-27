@@ -49,7 +49,7 @@ function StoreModal({
   const updateStore = useUpdateStore(filterCityId);
   const [apiError, setApiError] = useState('');
 
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<StoreFormValues>({
+  const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<StoreFormValues>({
     defaultValues: editing ? {
       name: editing.name,
       storeCode: editing.storeCode,
