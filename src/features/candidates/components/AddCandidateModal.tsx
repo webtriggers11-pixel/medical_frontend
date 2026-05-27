@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { format } from 'date-fns';
 import { Modal } from '../../../components/ui/Modal';
 import { Input } from '../../../components/ui/Input';
@@ -6,14 +6,9 @@ import { Select } from '../../../components/ui/Select';
 import { DatePicker } from '../../../components/ui/DatePicker';
 import { Button } from '../../../components/ui/Button';
 import { useCreateCandidate } from '../hooks/useCreateCandidate';
+import { useZones, useCities, useStores } from '../hooks/useOrgCascade';
 import { getApiErrorMessage } from '../../../lib/apiError';
-import {
-  ZONE_OPTIONS,
-  CITY_OPTIONS,
-  STORE_OPTIONS,
-  GENDER_OPTIONS,
-  CANDIDATE_TYPE_OPTIONS,
-} from '../candidate.constants';
+import { GENDER_OPTIONS, CANDIDATE_TYPE_OPTIONS } from '../candidate.constants';
 import type { CandidateType, Gender } from '../../../types/candidate.types';
 
 interface AddCandidateModalProps {
@@ -22,35 +17,24 @@ interface AddCandidateModalProps {
 }
 
 interface FormState {
-  zone: string;
-  city: string;
-  store: string;
+  zoneId: string;
+  cityId: string;
+  storeId: string;
   name: string;
   employeeCode: string;
-  mobileNumber: string;
+  mobile: string;
   gender: string;
   age: string;
   candidateType: string;
-  dateOfJoining: Date | undefined;
+  doj: Date | undefined;
   pincode: string;
   email: string;
   panNumber: string;
 }
 
 const EMPTY: FormState = {
-  zone: '',
-  city: '',
-  store: '',
-  name: '',
-  employeeCode: '',
-  mobileNumber: '',
-  gender: '',
-  age: '',
-  candidateType: '',
-  dateOfJoining: undefined,
-  pincode: '',
-  email: '',
-  panNumber: '',
+  zoneId: '', cityId: '', storeId: '', name: '', employeeCode: '', mobile: '',
+  gender: '', age: '', candidateType: '', doj: undefined, pincode: '', email: '', panNumber: '',
 };
 
 type Errors = Partial<Record<keyof FormState, string>>;
@@ -60,18 +44,19 @@ const PAN_RE = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 
 function validate(form: FormState): Errors {
   const e: Errors = {};
+  if (!form.zoneId) e.zoneId = 'Zone is required';
+  if (!form.cityId) e.cityId = 'City is required';
+  if (!form.storeId) e.storeId = 'Store is required';
   if (!form.name.trim()) e.name = 'Name is required';
   if (!form.employeeCode.trim()) e.employeeCode = 'Employee code is required';
-  if (!/^\d{10}$/.test(form.mobileNumber.trim())) e.mobileNumber = 'Enter a 10-digit mobile number';
+  if (!/^\d{10}$/.test(form.mobile.trim())) e.mobile = 'Enter a 10-digit mobile number';
   if (!form.gender) e.gender = 'Gender is required';
   const age = Number(form.age);
-  if (!form.age.trim() || !Number.isInteger(age) || age < 18 || age > 100)
-    e.age = 'Age must be 18–100';
+  if (!form.age.trim() || !Number.isInteger(age) || age < 18 || age > 100) e.age = 'Age must be 18–100';
   if (!form.candidateType) e.candidateType = 'Candidate type is required';
-  if (!form.dateOfJoining) e.dateOfJoining = 'Date of joining is required';
-  if (form.pincode.trim() && !/^\d{6}$/.test(form.pincode.trim()))
-    e.pincode = 'Pincode must be 6 digits';
-  if (form.email.trim() && !EMAIL_RE.test(form.email.trim())) e.email = 'Enter a valid email';
+  if (!form.doj) e.doj = 'Date of joining is required';
+  if (!/^\d{6}$/.test(form.pincode.trim())) e.pincode = 'Pincode must be 6 digits';
+  if (!EMAIL_RE.test(form.email.trim())) e.email = 'Enter a valid email';
   if (form.panNumber.trim() && !PAN_RE.test(form.panNumber.trim().toUpperCase()))
     e.panNumber = 'Invalid PAN (e.g. ABCDE1234F)';
   return e;
@@ -83,12 +68,33 @@ export function AddCandidateModal({ open, onClose }: AddCandidateModalProps) {
   const [apiError, setApiError] = useState('');
   const { mutateAsync, isPending } = useCreateCandidate();
 
+  const { data: zones, isLoading: zonesLoading } = useZones();
+  const { data: cities, isLoading: citiesLoading } = useCities(form.zoneId || undefined);
+  const { data: stores, isLoading: storesLoading } = useStores(form.cityId || undefined);
+
+  const zoneOptions = useMemo(() => (zones ?? []).map((z) => ({ label: z.name, value: z.id })), [zones]);
+  const cityOptions = useMemo(() => (cities ?? []).map((c) => ({ label: c.name, value: c.id })), [cities]);
+  const storeOptions = useMemo(
+    () => (stores ?? []).map((s) => ({ label: `${s.name} (${s.storeCode})`, value: s.id })),
+    [stores],
+  );
+
   const set = <K extends keyof FormState>(key: K, val: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: val }));
     setErrors((prev) => ({ ...prev, [key]: undefined }));
   };
   const onInput = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     set(key, e.target.value);
+
+  // Cascade resets: changing zone clears city+store; changing city clears store.
+  const onZoneChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setForm((prev) => ({ ...prev, zoneId: e.target.value, cityId: '', storeId: '' }));
+    setErrors((prev) => ({ ...prev, zoneId: undefined }));
+  };
+  const onCityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setForm((prev) => ({ ...prev, cityId: e.target.value, storeId: '' }));
+    setErrors((prev) => ({ ...prev, cityId: undefined }));
+  };
 
   const close = () => {
     setForm(EMPTY);
@@ -100,26 +106,23 @@ export function AddCandidateModal({ open, onClose }: AddCandidateModalProps) {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setApiError('');
-    const validationErrors = validate(form);
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
+    const v = validate(form);
+    if (Object.keys(v).length > 0) {
+      setErrors(v);
       return;
     }
-
     try {
       await mutateAsync({
-        zone: form.zone || undefined,
-        city: form.city || undefined,
-        store: form.store || undefined,
+        storeId: form.storeId,
         name: form.name.trim(),
         employeeCode: form.employeeCode.trim(),
-        mobileNumber: form.mobileNumber.trim(),
+        mobile: form.mobile.trim(),
         gender: form.gender as Gender,
         age: Number(form.age),
         candidateType: form.candidateType as CandidateType,
-        dateOfJoining: format(form.dateOfJoining as Date, 'yyyy-MM-dd'),
-        pincode: form.pincode.trim() || undefined,
-        email: form.email.trim() || undefined,
+        doj: format(form.doj as Date, 'yyyy-MM-dd'),
+        pincode: form.pincode.trim(),
+        email: form.email.trim(),
         panNumber: form.panNumber.trim().toUpperCase() || undefined,
       });
       close();
@@ -136,12 +139,8 @@ export function AddCandidateModal({ open, onClose }: AddCandidateModalProps) {
       size="xl"
       footer={
         <>
-          <Button variant="outline" onClick={close} disabled={isPending}>
-            Cancel
-          </Button>
-          <Button form="add-candidate-form" type="submit" loading={isPending}>
-            Submit
-          </Button>
+          <Button variant="outline" onClick={close} disabled={isPending}>Cancel</Button>
+          <Button form="add-candidate-form" type="submit" loading={isPending}>Submit</Button>
         </>
       }
     >
@@ -153,21 +152,24 @@ export function AddCandidateModal({ open, onClose }: AddCandidateModalProps) {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-4">
-          <Select label="Zone" placeholder="Select zone" options={ZONE_OPTIONS} value={form.zone} onChange={onInput('zone')} />
-          <Select label="City" placeholder="Select city" options={CITY_OPTIONS} value={form.city} onChange={onInput('city')} />
-          <Select label="Store" placeholder="Select store" options={STORE_OPTIONS} value={form.store} onChange={onInput('store')} />
+          <Select label="Zone" required placeholder={zonesLoading ? 'Loading…' : 'Select zone'}
+            options={zoneOptions} value={form.zoneId} onChange={onZoneChange} error={errors.zoneId} />
+          <Select label="City" required placeholder={!form.zoneId ? 'Select zone first' : citiesLoading ? 'Loading…' : 'Select city'}
+            options={cityOptions} value={form.cityId} onChange={onCityChange} error={errors.cityId} disabled={!form.zoneId} />
+          <Select label="Store" required placeholder={!form.cityId ? 'Select city first' : storesLoading ? 'Loading…' : 'Select store'}
+            options={storeOptions} value={form.storeId} onChange={onInput('storeId')} error={errors.storeId} disabled={!form.cityId} />
 
           <Input label="Name" required placeholder="Enter name" value={form.name} onChange={onInput('name')} error={errors.name} />
           <Input label="Employee Code" required placeholder="Enter employee code" value={form.employeeCode} onChange={onInput('employeeCode')} error={errors.employeeCode} />
-          <Input label="Mobile Number" required placeholder="9999999999" inputMode="numeric" maxLength={10} value={form.mobileNumber} onChange={onInput('mobileNumber')} error={errors.mobileNumber} />
+          <Input label="Mobile Number" required placeholder="9999999999" inputMode="numeric" maxLength={10} value={form.mobile} onChange={onInput('mobile')} error={errors.mobile} />
 
           <Select label="Gender" required placeholder="Select gender" options={GENDER_OPTIONS} value={form.gender} onChange={onInput('gender')} error={errors.gender} />
-          <Input label="Age" required placeholder="Enter age" inputMode="numeric" value={form.age} onChange={onInput('age')} error={errors.age} />
+          <Input label="Age" required placeholder="Enter age" inputMode="numeric" maxLength={3} value={form.age} onChange={onInput('age')} error={errors.age} />
           <Select label="Candidate Type" required placeholder="Select type" options={CANDIDATE_TYPE_OPTIONS} value={form.candidateType} onChange={onInput('candidateType')} error={errors.candidateType} />
 
-          <DatePicker label="Date of Joining" required value={form.dateOfJoining} onChange={(d) => set('dateOfJoining', d)} error={errors.dateOfJoining} />
-          <Input label="Pincode" placeholder="Enter pincode" inputMode="numeric" maxLength={6} value={form.pincode} onChange={onInput('pincode')} error={errors.pincode} />
-          <Input label="Email Address" type="email" placeholder="Enter email address" value={form.email} onChange={onInput('email')} error={errors.email} />
+          <DatePicker label="Date of Joining" required value={form.doj} onChange={(d) => set('doj', d)} error={errors.doj} />
+          <Input label="Pincode" required placeholder="Enter pincode" inputMode="numeric" maxLength={6} value={form.pincode} onChange={onInput('pincode')} error={errors.pincode} />
+          <Input label="Email Address" required type="email" placeholder="Enter email address" value={form.email} onChange={onInput('email')} error={errors.email} />
 
           <Input label="PAN Number" placeholder="ABCDE1234F" maxLength={10} value={form.panNumber} onChange={onInput('panNumber')} error={errors.panNumber} className="uppercase" />
         </div>
