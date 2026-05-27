@@ -1,6 +1,6 @@
 import api from '../api/axios.instance';
 import type { ApiResponse } from '../types/auth.types';
-import type { Zone, City, Store, CreateZoneInput, CreateCityInput, CreateStoreInput } from '../types/org.types';
+import type { Zone, City, Store, StoreWithLocation, CreateZoneInput, CreateCityInput, CreateStoreInput } from '../types/org.types';
 
 export const orgService = {
   listZones: async (): Promise<Zone[]> => {
@@ -13,8 +13,10 @@ export const orgService = {
     return res.data.data;
   },
 
-  listStores: async (cityId: string): Promise<Store[]> => {
-    const res = await api.get<ApiResponse<Store[]>>('/stores', { params: { cityId } });
+  listStores: async (cityId?: string): Promise<StoreWithLocation[]> => {
+    const res = await api.get<ApiResponse<StoreWithLocation[]>>('/stores', {
+      params: cityId ? { cityId } : {},
+    });
     return res.data.data;
   },
 

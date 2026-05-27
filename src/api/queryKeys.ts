@@ -10,13 +10,12 @@ export const queryKeys = {
     all: ['candidates'] as const,
     byId: (id: string) => ['candidates', id] as const,
   },
-  companies: {
-    all: ['companies'] as const,
-    byId: (id: string) => ['companies', id] as const,
-  },
   org: {
     zones: ['org', 'zones'] as const,
     cities: (zoneId: string) => ['org', 'cities', zoneId] as const,
+    // All store queries live under ['org','stores']; invalidating that prefix
+    // refreshes both the full list and any city-scoped (candidate cascade) list.
+    storesAll: ['org', 'stores'] as const,
     stores: (cityId: string) => ['org', 'stores', cityId] as const,
   },
   labs: {

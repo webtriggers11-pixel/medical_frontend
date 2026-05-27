@@ -13,17 +13,17 @@ export interface Panel {
   createdAt: string;
   lab?: { id: string; name: string; serviceCities: string[] };
   bundledTest?: { id: string; name: string; testsIncluded: string[] };
-  companyPricing?: CompanyPanelPricing[];
+  clientPricing?: ClientPanelPricing[];
 }
 
-export interface CompanyPanelPricing {
+export interface ClientPanelPricing {
   id: string;
-  companyId: string;
+  clientId: string;
   panelId: string;
   costToClient: number;
   discountAfterN: number;
   discountedPrice: number;
-  company?: { id: string; name: string };
+  client?: { id: string; name: string | null; email: string };
 }
 
 export interface CreatePanelInput {
@@ -45,8 +45,8 @@ export interface UpdatePanelInput {
   status?: PanelStatus;
 }
 
-export interface SetCompanyPricingInput {
-  companyId: string;
+export interface SetClientPricingInput {
+  clientId: string;
   costToClient: number;
   discountAfterN?: number;
   discountedPrice?: number;

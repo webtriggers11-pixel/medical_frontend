@@ -4,7 +4,6 @@ export type StoreStatus = 'ACTIVE' | 'INACTIVE';
 
 export interface Zone {
   id: string;
-  companyId: string;
   name: string;
   status: ZoneStatus;
   createdAt: string;
@@ -13,7 +12,6 @@ export interface Zone {
 export interface City {
   id: string;
   zoneId: string;
-  companyId: string;
   name: string;
   status: CityStatus;
   createdAt: string;
@@ -22,7 +20,7 @@ export interface City {
 export interface Store {
   id: string;
   cityId: string;
-  companyId: string;
+  clientId: string;
   name: string;
   storeCode: string;
   address: string;
@@ -33,9 +31,20 @@ export interface Store {
   createdAt: string;
 }
 
-export interface CreateZoneInput { companyId: string; name: string; }
-export interface CreateCityInput { companyId: string; zoneId: string; name: string; }
+// Store as returned by the list endpoint, enriched with its city + zone.
+export interface StoreWithLocation extends Store {
+  city?: {
+    id: string;
+    name: string;
+    zoneId: string;
+    zone: { id: string; name: string } | null;
+  } | null;
+}
+
+export interface CreateZoneInput { name: string; }
+export interface CreateCityInput { zoneId: string; name: string; }
 export interface CreateStoreInput {
-  companyId: string; cityId: string; storeCode: string; name: string;
+  // The owning client is the logged-in user — assigned by the backend, never sent.
+  cityId: string; storeCode: string; name: string;
   address: string; storeHeadName: string; storeHeadMobile: string; email?: string;
 }

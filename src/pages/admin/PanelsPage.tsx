@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { usePanels, useCreatePanel, useDeletePanel, useSetPanelPricing } from '../../features/panel/hooks/usePanels';
 import { useLabs, useBundledTests } from '../../features/lab/hooks/useLabs';
-import { useCompanies } from '../../features/company/hooks/useCompanies';
+import { useUsers } from '../../features/users/hooks/useUsers';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { Select } from '../../components/ui/Select';
+import { Combobox } from '../../components/ui/Combobox';
 import { Modal } from '../../components/ui/Modal';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -47,7 +48,7 @@ function CreatePanelModal({ open, onClose }: { open: boolean; onClose: () => voi
   const [selectedLabId, setSelectedLabId] = useState('');
   const { data: bundledTests } = useBundledTests(selectedLabId);
 
-  const { register, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm<PanelFormValues>();
+  const { register, control, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm<PanelFormValues>();
 
   const watchedLabId = watch('labId');
   if (watchedLabId !== selectedLabId) setSelectedLabId(watchedLabId);
@@ -91,22 +92,40 @@ function CreatePanelModal({ open, onClose }: { open: boolean; onClose: () => voi
     >
       <form id="panel-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {apiError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>}
-        <Select
-          label="Lab"
-          required
-          options={labOptions}
-          placeholder="Select a lab"
-          {...register('labId', { required: 'Required' })}
-          error={errors.labId?.message}
+        <Controller
+          name="labId"
+          control={control}
+          rules={{ required: 'Required' }}
+          render={({ field }) => (
+            <Combobox
+              label="Lab"
+              required
+              options={labOptions}
+              placeholder="Select a lab"
+              searchPlaceholder="Search labs..."
+              value={field.value ?? ''}
+              onChange={field.onChange}
+              error={errors.labId?.message}
+            />
+          )}
         />
-        <Select
-          label="Bundled test"
-          required
-          options={testOptions}
-          placeholder={selectedLabId ? 'Select a bundled test' : 'Select a lab first'}
-          disabled={!selectedLabId}
-          {...register('bundledTestId', { required: 'Required' })}
-          error={errors.bundledTestId?.message}
+        <Controller
+          name="bundledTestId"
+          control={control}
+          rules={{ required: 'Required' }}
+          render={({ field }) => (
+            <Combobox
+              label="Bundled test"
+              required
+              options={testOptions}
+              placeholder={selectedLabId ? 'Select a bundled test' : 'Select a lab first'}
+              searchPlaceholder="Search tests..."
+              disabled={!selectedLabId}
+              value={field.value ?? ''}
+              onChange={field.onChange}
+              error={errors.bundledTestId?.message}
+            />
+          )}
         />
         <Input
           label="Panel name"
@@ -139,21 +158,21 @@ function CreatePanelModal({ open, onClose }: { open: boolean; onClose: () => voi
   );
 }
 
-// ── Set company pricing modal ────────────────────────────────────
+// ── Set client pricing modal ─────────────────────────────────────
 
 interface PricingFormValues {
-  companyId: string;
+  clientId: string;
   costToClient: number;
   discountAfterN: number;
   discountedPrice: number;
 }
 
 function SetPricingModal({ panel, open, onClose }: { panel: Panel; open: boolean; onClose: () => void }) {
-  const { data: companies } = useCompanies();
+  const { data: clients } = useUsers();
   const setPricing = useSetPanelPricing(panel.id);
   const [apiError, setApiError] = useState('');
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<PricingFormValues>({
+  const { register, control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<PricingFormValues>({
     defaultValues: { discountAfterN: 0 },
   });
 
@@ -163,7 +182,7 @@ function SetPricingModal({ panel, open, onClose }: { panel: Panel; open: boolean
     setApiError('');
     try {
       await setPricing.mutateAsync({
-        companyId: values.companyId,
+        clientId: values.clientId,
         costToClient: Number(values.costToClient),
         discountAfterN: Number(values.discountAfterN) || 0,
         discountedPrice: values.discountedPrice ? Number(values.discountedPrice) : undefined,
@@ -174,16 +193,16 @@ function SetPricingModal({ panel, open, onClose }: { panel: Panel; open: boolean
     }
   };
 
-  const companyOptions = companies?.map((c) => ({ value: c.id, label: c.name })) ?? [];
+  const clientOptions = clients?.map((c) => ({ value: c.id, label: c.name ?? c.email })) ?? [];
 
   // Existing pricing rows for this panel
-  const existing = panel.companyPricing ?? [];
+  const existing = panel.clientPricing ?? [];
 
   return (
     <Modal
       open={open}
       onClose={handleClose}
-      title={`Company pricing — ${panel.name}`}
+      title={`Client pricing — ${panel.name}`}
       size="lg"
       footer={
         <div className="flex justify-end gap-3">
@@ -200,7 +219,7 @@ function SetPricingModal({ panel, open, onClose }: { panel: Panel; open: boolean
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-border">
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500">Company</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500">Client</th>
                   <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500">Cost to client</th>
                   <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500">Discount after N</th>
                   <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500">Discounted price</th>
@@ -209,7 +228,7 @@ function SetPricingModal({ panel, open, onClose }: { panel: Panel; open: boolean
               <tbody className="divide-y divide-border">
                 {existing.map((p) => (
                   <tr key={p.id}>
-                    <td className="px-4 py-2.5 font-medium text-slate-800">{p.company?.name ?? p.companyId}</td>
+                    <td className="px-4 py-2.5 font-medium text-slate-800">{p.client?.name ?? p.client?.email ?? p.clientId}</td>
                     <td className="px-4 py-2.5 text-slate-700">₹{Number(p.costToClient).toLocaleString('en-IN')}</td>
                     <td className="px-4 py-2.5 text-slate-500">{p.discountAfterN > 0 ? `${p.discountAfterN} bookings` : '—'}</td>
                     <td className="px-4 py-2.5 text-slate-500">
@@ -225,7 +244,7 @@ function SetPricingModal({ panel, open, onClose }: { panel: Panel; open: boolean
 
       {/* Add / update pricing form */}
       <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
-        {existing.length > 0 ? 'Add or update a company' : 'Set company pricing'}
+        {existing.length > 0 ? 'Add or update a client' : 'Set client pricing'}
       </p>
       <form id="pricing-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {apiError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>}
@@ -235,19 +254,28 @@ function SetPricingModal({ panel, open, onClose }: { panel: Panel; open: boolean
           <span>Vendor cost: <strong className="text-slate-900">₹{Number(panel.costToVendor).toLocaleString('en-IN')}</strong></span>
         </div>
 
-        <Select
-          label="Company"
-          required
-          options={companyOptions}
-          placeholder="Select a company"
-          {...register('companyId', { required: 'Required' })}
-          error={errors.companyId?.message}
+        <Controller
+          name="clientId"
+          control={control}
+          rules={{ required: 'Required' }}
+          render={({ field }) => (
+            <Combobox
+              label="Client"
+              required
+              options={clientOptions}
+              placeholder="Select a client"
+              searchPlaceholder="Search clients..."
+              value={field.value ?? ''}
+              onChange={field.onChange}
+              error={errors.clientId?.message}
+            />
+          )}
         />
         <Input
           label="Cost to client (₹)"
           type="number"
           required
-          placeholder="What the company pays per candidate"
+          placeholder="What the client pays per candidate"
           {...register('costToClient', { required: 'Required', min: { value: 0, message: 'Must be ≥ 0' } })}
           error={errors.costToClient?.message}
         />
@@ -280,6 +308,7 @@ export function PanelsPage() {
   const [search, setSearch] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [pricingPanel, setPricingPanel] = useState<Panel | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Panel | null>(null);
 
   const filtered = panels?.filter((p) => {
     const q = search.toLowerCase();
@@ -330,14 +359,14 @@ export function PanelsPage() {
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Tests</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">MRP</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Vendor cost</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Company pricing</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Client pricing</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                   <th className="px-5 py-3.5" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {filtered.map((p) => {
-                  const pricingCount = p.companyPricing?.length ?? 0;
+                  const pricingCount = p.clientPricing?.length ?? 0;
                   return (
                     <tr key={p.id} className="group hover:bg-slate-50/70 transition-colors">
                       <td className="px-5 py-3.5">
@@ -367,7 +396,7 @@ export function PanelsPage() {
                             onClick={() => setPricingPanel(p)}
                             className="flex items-center gap-1.5 text-primary-600 hover:text-primary-700 text-sm font-medium transition-colors"
                           >
-                            <span>{pricingCount} {pricingCount === 1 ? 'company' : 'companies'}</span>
+                            <span>{pricingCount} {pricingCount === 1 ? 'client' : 'clients'}</span>
                           </button>
                         ) : (
                           <button
@@ -388,7 +417,7 @@ export function PanelsPage() {
                           <Button variant="ghost" size="sm" icon={TagIcon} onClick={() => setPricingPanel(p)}>
                             Pricing
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => deletePanel.mutate(p.id)}>Delete</Button>
+                          <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(p)}>Delete</Button>
                         </div>
                       </td>
                     </tr>
@@ -420,6 +449,19 @@ export function PanelsPage() {
           onClose={() => setPricingPanel(null)}
         />
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        loading={deletePanel.isPending}
+        title="Delete panel"
+        confirmLabel="Delete panel"
+        message={<>Delete <strong>{deleteTarget?.name}</strong>? This cannot be undone.</>}
+        onConfirm={() => {
+          if (!deleteTarget) return;
+          deletePanel.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) });
+        }}
+      />
     </div>
   );
 }

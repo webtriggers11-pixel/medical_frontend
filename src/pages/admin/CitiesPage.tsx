@@ -5,8 +5,9 @@ import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { Select } from '../../components/ui/Select';
+import { Combobox } from '../../components/ui/Combobox';
 import { Modal } from '../../components/ui/Modal';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -20,9 +21,9 @@ const PlusIcon = (
 );
 
 function CityModal({
-  open, onClose, zoneId, companyId, editing,
+  open, onClose, zoneId, editing,
 }: {
-  open: boolean; onClose: () => void; zoneId: string; companyId: string; editing: City | null;
+  open: boolean; onClose: () => void; zoneId: string; editing: City | null;
 }) {
   const createCity = useCreateCity();
   const updateCity = useUpdateCity(zoneId);
@@ -40,7 +41,7 @@ function CityModal({
       if (editing) {
         await updateCity.mutateAsync({ id: editing.id, name });
       } else {
-        await createCity.mutateAsync({ companyId, zoneId, name });
+        await createCity.mutateAsync({ zoneId, name });
       }
       handleClose();
     } catch (err) { setApiError(getApiErrorMessage(err)); }
@@ -79,6 +80,7 @@ export function CitiesPage() {
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<City | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<City | null>(null);
 
   const { data: zones } = useZones();
   const { data: cities, isLoading, error } = useCities(selectedZoneId);
@@ -114,12 +116,13 @@ export function CitiesPage() {
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-4">
         <div className="w-72">
-          <Select
+          <Combobox
             label="Zone"
             options={zoneOptions}
             placeholder="Select a zone..."
+            searchPlaceholder="Search zones..."
             value={selectedZoneId}
-            onChange={(e) => { setSelectedZoneId(e.target.value); setSearch(''); }}
+            onChange={(v) => { setSelectedZoneId(v); setSearch(''); }}
           />
         </div>
         {selectedZoneId && (
@@ -180,7 +183,7 @@ export function CitiesPage() {
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button variant="ghost" size="sm" onClick={() => handleEdit(c)}>Edit</Button>
-                        <Button variant="ghost" size="sm" onClick={() => deleteCity.mutate(c.id)}>Delete</Button>
+                        <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(c)}>Delete</Button>
                       </div>
                     </td>
                   </tr>
@@ -206,8 +209,20 @@ export function CitiesPage() {
         open={modalOpen}
         onClose={handleClose}
         zoneId={selectedZoneId}
-        companyId={selectedZone?.companyId ?? ''}
         editing={editing}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        loading={deleteCity.isPending}
+        title="Delete city"
+        confirmLabel="Delete city"
+        message={<>Delete <strong>{deleteTarget?.name}</strong>? This cannot be undone.</>}
+        onConfirm={() => {
+          if (!deleteTarget) return;
+          deleteCity.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) });
+        }}
       />
     </div>
   );

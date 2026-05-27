@@ -1,7 +1,8 @@
 import api from '../api/axios.instance';
-import type { UserRecord } from '../types/user.types';
+import type { UserRecord, CreateClientInput } from '../types/user.types';
 import type { ApiResponse } from '../types/auth.types';
 
+// Clients are users (role USER). These endpoints back the Clients page.
 export const usersService = {
   getAll: async (): Promise<UserRecord[]> => {
     const res = await api.get<ApiResponse<UserRecord[]>>('/users');
@@ -11,5 +12,19 @@ export const usersService = {
   getById: async (id: string): Promise<UserRecord> => {
     const res = await api.get<ApiResponse<UserRecord>>(`/users/${id}`);
     return res.data.data;
+  },
+
+  create: async (input: CreateClientInput): Promise<UserRecord> => {
+    const res = await api.post<ApiResponse<UserRecord>>('/users', input);
+    return res.data.data;
+  },
+
+  setActive: async (id: string, isActive: boolean): Promise<UserRecord> => {
+    const res = await api.patch<ApiResponse<UserRecord>>(`/users/${id}`, { isActive });
+    return res.data.data;
+  },
+
+  remove: async (id: string): Promise<void> => {
+    await api.delete(`/users/${id}`);
   },
 };

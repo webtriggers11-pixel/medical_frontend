@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../../api/queryKeys';
 import { panelService } from '../../../services/panel.service';
-import type { CreatePanelInput, UpdatePanelInput, SetCompanyPricingInput } from '../../../types/panel.types';
+import type { CreatePanelInput, UpdatePanelInput, SetClientPricingInput } from '../../../types/panel.types';
 
 export const usePanels = (labId?: string) =>
   useQuery({
@@ -44,7 +44,7 @@ export const usePanelPricing = (panelId: string) =>
 export const useSetPanelPricing = (panelId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: SetCompanyPricingInput) => panelService.setPricing(panelId, input),
+    mutationFn: (input: SetClientPricingInput) => panelService.setPricing(panelId, input),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.panels.pricing(panelId) }),
   });
 };

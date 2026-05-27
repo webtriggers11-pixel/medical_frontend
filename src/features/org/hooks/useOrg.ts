@@ -67,36 +67,36 @@ export const useDeleteCity = (zoneId: string) => {
   });
 };
 
-// Stores — keyed by cityId
-export const useStores = (cityId: string) =>
+// Stores — all stores for the current client (with city + zone).
+export const useStores = () =>
   useQuery({
-    queryKey: queryKeys.org.stores(cityId),
-    queryFn: () => orgService.listStores(cityId),
-    enabled: !!cityId,
+    queryKey: queryKeys.org.storesAll,
+    queryFn: () => orgService.listStores(),
   });
 
+// Invalidating the ['org','stores'] prefix refreshes the full list and any
+// city-scoped list (e.g. the candidate cascade).
 export const useCreateStore = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateStoreInput) => orgService.createStore(input),
-    onSuccess: (_data, vars) =>
-      qc.invalidateQueries({ queryKey: queryKeys.org.stores(vars.cityId) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.org.storesAll }),
   });
 };
 
-export const useUpdateStore = (cityId: string) => {
+export const useUpdateStore = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: Partial<CreateStoreInput> }) =>
       orgService.updateStore(id, input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.org.stores(cityId) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.org.storesAll }),
   });
 };
 
-export const useDeleteStore = (cityId: string) => {
+export const useDeleteStore = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => orgService.deleteStore(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.org.stores(cityId) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.org.storesAll }),
   });
 };

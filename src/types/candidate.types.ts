@@ -4,7 +4,7 @@ export type CandidateType = 'NEW_JOINER' | 'EXISTING' | 'ANNUAL';
 export interface Candidate {
   id: string;
   storeId: string;
-  companyId: string;
+  clientId: string;
   name: string;
   employeeCode: string;
   mobile: string;
@@ -18,7 +18,7 @@ export interface Candidate {
   isActive: boolean;
   createdAt: string;
   store?: { id: string; name: string; storeCode: string } | null;
-  company?: { id: string; name: string; code: string } | null;
+  client?: { id: string; name: string | null; email: string } | null;
 }
 
 export interface CreateCandidateInput {

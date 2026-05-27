@@ -1,25 +1,32 @@
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { useCompanies } from '../../features/company/hooks/useCompanies';
+import { useMemo, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useForm, Controller } from 'react-hook-form';
 import {
   useZones, useCities, useStores,
-  useCreateStore, useUpdateStore, useDeleteStore,
+  useUpdateStore, useDeleteStore,
 } from '../../features/org/hooks/useOrg';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { Select } from '../../components/ui/Select';
+import { Combobox } from '../../components/ui/Combobox';
 import { Modal } from '../../components/ui/Modal';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { getApiErrorMessage } from '../../lib/apiError';
-import type { Store, CreateStoreInput } from '../../types/org.types';
+import type { StoreWithLocation } from '../../types/org.types';
 
 const PlusIcon = (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+  </svg>
+);
+
+const StoreIcon = (
+  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.015a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" />
   </svg>
 );
 
@@ -30,26 +37,22 @@ type StoreFormValues = {
   storeHeadName: string;
   storeHeadMobile: string;
   email: string;
-  companyId: string;
-  zoneId: string;
   cityId: string;
 };
 
 function StoreModal({
-  open, onClose, filterCityId, editing,
+  open, onClose, editing,
 }: {
-  open: boolean; onClose: () => void; filterCityId: string; editing: Store | null;
+  open: boolean; onClose: () => void; editing: StoreWithLocation | null;
 }) {
-  const { data: companies } = useCompanies();
   const { data: zones } = useZones();
-  const [modalZoneId, setModalZoneId] = useState(editing?.cityId ? '' : '');
+  const [modalZoneId, setModalZoneId] = useState(editing?.city?.zoneId ?? '');
   const { data: modalCities } = useCities(modalZoneId);
 
-  const createStore = useCreateStore();
-  const updateStore = useUpdateStore(filterCityId);
+  const updateStore = useUpdateStore();
   const [apiError, setApiError] = useState('');
 
-  const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<StoreFormValues>({
+  const { register, control, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<StoreFormValues>({
     defaultValues: editing ? {
       name: editing.name,
       storeCode: editing.storeCode,
@@ -57,47 +60,31 @@ function StoreModal({
       storeHeadName: editing.storeHeadName,
       storeHeadMobile: editing.storeHeadMobile,
       email: editing.email ?? '',
-      companyId: editing.companyId,
       cityId: editing.cityId,
     } : {},
   });
 
-  const companyOptions = companies?.map((c) => ({ value: c.id, label: c.name })) ?? [];
   const zoneOptions = zones?.map((z) => ({ value: z.id, label: z.name })) ?? [];
   const cityOptions = modalCities?.map((c) => ({ value: c.id, label: c.name })) ?? [];
 
-  const handleClose = () => { reset(); setApiError(''); setModalZoneId(''); onClose(); };
+  const handleClose = () => { reset(); setApiError(''); onClose(); };
 
   const onSubmit = async (values: StoreFormValues) => {
+    if (!editing) return;
     setApiError('');
     try {
-      if (editing) {
-        await updateStore.mutateAsync({
-          id: editing.id,
-          input: {
-            name: values.name,
-            storeCode: values.storeCode,
-            address: values.address,
-            storeHeadName: values.storeHeadName,
-            storeHeadMobile: values.storeHeadMobile,
-            email: values.email || undefined,
-            companyId: values.companyId,
-            cityId: values.cityId,
-          },
-        });
-      } else {
-        const payload: CreateStoreInput = {
-          companyId: values.companyId,
-          cityId: values.cityId,
+      await updateStore.mutateAsync({
+        id: editing.id,
+        input: {
           name: values.name,
           storeCode: values.storeCode,
           address: values.address,
           storeHeadName: values.storeHeadName,
           storeHeadMobile: values.storeHeadMobile,
           email: values.email || undefined,
-        };
-        await createStore.mutateAsync(payload);
-      }
+          cityId: values.cityId,
+        },
+      });
       handleClose();
     } catch (err) { setApiError(getApiErrorMessage(err)); }
   };
@@ -106,47 +93,47 @@ function StoreModal({
     <Modal
       open={open}
       onClose={handleClose}
-      title={editing ? 'Edit store' : 'Add store'}
+      title="Edit store"
       footer={
         <div className="flex justify-end gap-3">
           <Button variant="outline" onClick={handleClose}>Cancel</Button>
-          <Button type="submit" form="store-form" loading={isSubmitting}>
-            {editing ? 'Save changes' : 'Add store'}
-          </Button>
+          <Button type="submit" form="store-form" loading={isSubmitting}>Save changes</Button>
         </div>
       }
     >
       <form id="store-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {apiError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>}
 
-        <Select
-          label="Company"
-          required
-          options={companyOptions}
-          placeholder="Select company..."
-          {...register('companyId', { required: 'Required' })}
-          error={errors.companyId?.message}
-        />
-
         <div className="grid grid-cols-2 gap-4">
-          <Select
+          <Combobox
             label="Zone"
             required
             options={zoneOptions}
             placeholder="Select zone..."
+            searchPlaceholder="Search zones..."
             value={modalZoneId}
-            onChange={(e) => {
-              setModalZoneId(e.target.value);
+            onChange={(v) => {
+              setModalZoneId(v);
               setValue('cityId', '');
             }}
           />
-          <Select
-            label="City"
-            required
-            options={cityOptions}
-            placeholder={modalZoneId ? 'Select city...' : 'Select zone first'}
-            {...register('cityId', { required: 'Required' })}
-            error={errors.cityId?.message}
+          <Controller
+            name="cityId"
+            control={control}
+            rules={{ required: 'Required' }}
+            render={({ field }) => (
+              <Combobox
+                label="City"
+                required
+                options={cityOptions}
+                placeholder={modalZoneId ? 'Select city...' : 'Select zone first'}
+                searchPlaceholder="Search cities..."
+                disabled={!modalZoneId}
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                error={errors.cityId?.message}
+              />
+            )}
           />
         </div>
 
@@ -192,7 +179,7 @@ function StoreModal({
         <Input
           label="Email"
           type="email"
-          placeholder="store@company.com (optional)"
+          placeholder="store@example.com (optional)"
           {...register('email')}
         />
       </form>
@@ -201,38 +188,57 @@ function StoreModal({
 }
 
 export function StoresPage() {
-  const { data: zones } = useZones();
-  const [selectedZoneId, setSelectedZoneId] = useState('');
-  const [selectedCityId, setSelectedCityId] = useState('');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const navState = location.state as { zoneId?: string; cityId?: string } | null;
+
+  const { data: stores, isLoading, error } = useStores();
+  const deleteStore = useDeleteStore();
+
+  // Filters default to empty (show all). After creating a store we arrive with
+  // navState so the user immediately sees that store's city.
+  const [selectedZoneId, setSelectedZoneId] = useState(navState?.zoneId ?? '');
+  const [selectedCityId, setSelectedCityId] = useState(navState?.cityId ?? '');
   const [search, setSearch] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<Store | null>(null);
+  const [editing, setEditing] = useState<StoreWithLocation | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<StoreWithLocation | null>(null);
 
-  const { data: cities } = useCities(selectedZoneId);
-  const { data: stores, isLoading, error } = useStores(selectedCityId);
-  const deleteStore = useDeleteStore(selectedCityId);
+  const goToAddStore = () => navigate('/stores/new');
 
-  const zoneOptions = zones?.map((z) => ({ value: z.id, label: z.name })) ?? [];
-  const cityOptions = cities?.map((c) => ({ value: c.id, label: c.name })) ?? [];
+  // Filter options derived from the stores the user actually has.
+  const zoneOptions = useMemo(() => {
+    const m = new Map<string, string>();
+    stores?.forEach((s) => { if (s.city?.zone) m.set(s.city.zone.id, s.city.zone.name); });
+    return [...m.entries()]
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [stores]);
 
-  const selectedCity = cities?.find((c) => c.id === selectedCityId);
-  const selectedZone = zones?.find((z) => z.id === selectedZoneId);
+  const cityOptions = useMemo(() => {
+    const m = new Map<string, { name: string; zoneId: string }>();
+    stores?.forEach((s) => {
+      if (s.city) m.set(s.city.id, { name: s.city.name, zoneId: s.city.zoneId });
+    });
+    return [...m.entries()]
+      .filter(([, v]) => !selectedZoneId || v.zoneId === selectedZoneId)
+      .map(([value, v]) => ({ value, label: v.name }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [stores, selectedZoneId]);
 
-  const filtered = stores?.filter((s) =>
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.storeCode.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (stores ?? []).filter((s) => {
+      if (selectedZoneId && s.city?.zone?.id !== selectedZoneId) return false;
+      if (selectedCityId && s.cityId !== selectedCityId) return false;
+      if (q && !(s.name.toLowerCase().includes(q) || s.storeCode.toLowerCase().includes(q))) return false;
+      return true;
+    });
+  }, [stores, selectedZoneId, selectedCityId, search]);
 
-  const handleEdit = (s: Store) => { setEditing(s); setModalOpen(true); };
-  const handleClose = () => { setEditing(null); setModalOpen(false); };
+  const hasFilters = !!selectedZoneId || !!selectedCityId || !!search;
+  const clearFilters = () => { setSelectedZoneId(''); setSelectedCityId(''); setSearch(''); };
 
-  const handleZoneChange = (id: string) => {
-    setSelectedZoneId(id);
-    setSelectedCityId('');
-    setSearch('');
-  };
-
-  const canShowTable = !!selectedCityId;
+  const handleEdit = (s: StoreWithLocation) => setEditing(s);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -240,79 +246,73 @@ export function StoresPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Stores</h1>
           <p className="text-slate-500 mt-1">
-            Stores by city
-            {stores && selectedCityId && (
-              <span className="text-slate-400"> &middot; {stores.length} total</span>
+            All your stores
+            {stores && stores.length > 0 && (
+              <span className="text-slate-400">
+                {' '}&middot; {hasFilters ? `${filtered.length} of ${stores.length}` : `${stores.length} total`}
+              </span>
             )}
           </p>
         </div>
-        {selectedCityId && (
-          <Button icon={PlusIcon} onClick={() => setModalOpen(true)}>Add store</Button>
-        )}
+        <Button icon={PlusIcon} onClick={goToAddStore}>Add store</Button>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-end gap-4">
-        <div className="w-56">
-          <Select
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="w-52">
+          <Combobox
             label="Zone"
             options={zoneOptions}
-            placeholder="Select a zone..."
+            placeholder="All zones"
+            searchPlaceholder="Search zones..."
+            emptyText="No zones"
             value={selectedZoneId}
-            onChange={(e) => handleZoneChange(e.target.value)}
+            onChange={(v) => { setSelectedZoneId(v); setSelectedCityId(''); }}
           />
         </div>
-        {selectedZoneId && (
-          <div className="w-56">
-            <Select
-              label="City"
-              options={cityOptions}
-              placeholder="Select a city..."
-              value={selectedCityId}
-              onChange={(e) => { setSelectedCityId(e.target.value); setSearch(''); }}
-            />
-          </div>
-        )}
-        {selectedCityId && (
-          <SearchInput
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onClear={() => setSearch('')}
-            placeholder="Search stores..."
-            className="w-56"
+        <div className="w-52">
+          <Combobox
+            label="City"
+            options={cityOptions}
+            placeholder="All cities"
+            searchPlaceholder="Search cities..."
+            emptyText={selectedZoneId ? 'No cities in this zone' : 'No cities'}
+            value={selectedCityId}
+            onChange={setSelectedCityId}
           />
+        </div>
+        <SearchInput
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onClear={() => setSearch('')}
+          placeholder="Search by name or code..."
+          className="w-60"
+        />
+        {hasFilters && (
+          <Button variant="ghost" onClick={clearFilters}>Clear filters</Button>
         )}
       </div>
 
-      {!selectedZoneId && (
-        <Card>
-          <EmptyState
-            icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.015a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" /></svg>}
-            title="Select a zone"
-            description="Choose a zone, then a city to view stores."
-          />
-        </Card>
-      )}
+      {isLoading && <SkeletonTable rows={5} />}
 
-      {selectedZoneId && !selectedCityId && (
-        <Card>
-          <EmptyState
-            icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" /></svg>}
-            title="Select a city"
-            description="Choose a city to view and manage its stores."
-          />
-        </Card>
-      )}
-
-      {canShowTable && isLoading && <SkeletonTable rows={4} />}
-
-      {canShowTable && error && (
+      {error && (
         <Card>
           <p className="text-sm text-red-600 font-medium">Failed to load stores. Please try again.</p>
         </Card>
       )}
 
-      {filtered && filtered.length > 0 && (
+      {!isLoading && !error && stores && stores.length === 0 && (
+        <Card>
+          <EmptyState
+            icon={StoreIcon}
+            title="No stores yet"
+            description="Add your first store to get started."
+            action={<Button size="sm" icon={PlusIcon} onClick={goToAddStore}>Add store</Button>}
+          />
+        </Card>
+      )}
+
+      {stores && stores.length > 0 && filtered.length > 0 && (
         <Card padding="none">
           <div className="overflow-x-auto">
             <table className="w-full text-sm whitespace-nowrap">
@@ -333,8 +333,8 @@ export function StoresPage() {
                     <td className="px-5 py-3.5 font-medium text-slate-900">{s.name}</td>
                     <td className="px-5 py-3.5 text-slate-500 font-mono text-xs">{s.storeCode}</td>
                     <td className="px-5 py-3.5 text-slate-600">
-                      <div>{selectedCity?.name ?? '—'}</div>
-                      <div className="text-xs text-slate-400">{selectedZone?.name}</div>
+                      <div>{s.city?.name ?? '—'}</div>
+                      <div className="text-xs text-slate-400">{s.city?.zone?.name ?? '—'}</div>
                     </td>
                     <td className="px-5 py-3.5 text-slate-600">
                       <div>{s.storeHeadName}</div>
@@ -351,7 +351,7 @@ export function StoresPage() {
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button variant="ghost" size="sm" onClick={() => handleEdit(s)}>Edit</Button>
-                        <Button variant="ghost" size="sm" onClick={() => deleteStore.mutate(s.id)}>Delete</Button>
+                        <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(s)}>Delete</Button>
                       </div>
                     </td>
                   </tr>
@@ -362,22 +362,35 @@ export function StoresPage() {
         </Card>
       )}
 
-      {filtered?.length === 0 && canShowTable && (
+      {stores && stores.length > 0 && filtered.length === 0 && (
         <Card>
           <EmptyState
-            icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.015a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" /></svg>}
-            title={search ? 'No stores found' : 'No stores yet'}
-            description={search ? `No results for "${search}"` : 'Add the first store for this city.'}
-            action={!search ? <Button size="sm" icon={PlusIcon} onClick={() => setModalOpen(true)}>Add store</Button> : undefined}
+            icon={StoreIcon}
+            title="No stores match your filters"
+            description="Try a different zone, city, or search term."
+            action={<Button size="sm" variant="outline" onClick={clearFilters}>Clear filters</Button>}
           />
         </Card>
       )}
 
       <StoreModal
-        open={modalOpen}
-        onClose={handleClose}
-        filterCityId={selectedCityId}
+        key={editing?.id ?? 'closed'}
+        open={!!editing}
+        onClose={() => setEditing(null)}
         editing={editing}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        loading={deleteStore.isPending}
+        title="Delete store"
+        confirmLabel="Delete store"
+        message={<>Delete <strong>{deleteTarget?.name}</strong>? This cannot be undone.</>}
+        onConfirm={() => {
+          if (!deleteTarget) return;
+          deleteStore.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) });
+        }}
       />
     </div>
   );

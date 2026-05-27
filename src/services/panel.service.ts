@@ -1,6 +1,6 @@
 import api from '../api/axios.instance';
 import type { ApiResponse } from '../types/auth.types';
-import type { Panel, CreatePanelInput, UpdatePanelInput, CompanyPanelPricing, SetCompanyPricingInput } from '../types/panel.types';
+import type { Panel, CreatePanelInput, UpdatePanelInput, ClientPanelPricing, SetClientPricingInput } from '../types/panel.types';
 
 export const panelService = {
   getAll: async (labId?: string): Promise<Panel[]> => {
@@ -27,18 +27,18 @@ export const panelService = {
     await api.delete(`/panels/${id}`);
   },
 
-  // Company pricing
-  getPricing: async (panelId: string): Promise<CompanyPanelPricing[]> => {
-    const res = await api.get<ApiResponse<CompanyPanelPricing[]>>(`/panels/${panelId}/pricing`);
+  // Client pricing
+  getPricing: async (panelId: string): Promise<ClientPanelPricing[]> => {
+    const res = await api.get<ApiResponse<ClientPanelPricing[]>>(`/panels/${panelId}/pricing`);
     return res.data.data;
   },
 
-  setPricing: async (panelId: string, input: SetCompanyPricingInput): Promise<CompanyPanelPricing> => {
-    const res = await api.post<ApiResponse<CompanyPanelPricing>>(`/panels/${panelId}/pricing`, input);
+  setPricing: async (panelId: string, input: SetClientPricingInput): Promise<ClientPanelPricing> => {
+    const res = await api.post<ApiResponse<ClientPanelPricing>>(`/panels/${panelId}/pricing`, input);
     return res.data.data;
   },
 
-  removePricing: async (panelId: string, companyId: string): Promise<void> => {
-    await api.delete(`/panels/${panelId}/pricing/${companyId}`);
+  removePricing: async (panelId: string, clientId: string): Promise<void> => {
+    await api.delete(`/panels/${panelId}/pricing/${clientId}`);
   },
 };

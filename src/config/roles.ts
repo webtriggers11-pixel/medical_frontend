@@ -28,7 +28,8 @@ export function hasRole(
   return list.includes(role);
 }
 
-/** Human-readable label for a role. */
+/** Human-readable label for a role. A USER is a client login. */
 export function roleLabel(role: Role): string {
+  if (role === ROLES.USER) return 'Client';
   return role.charAt(0) + role.slice(1).toLowerCase();
 }

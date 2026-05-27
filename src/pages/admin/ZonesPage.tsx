@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useZones, useCreateZone, useUpdateZone, useDeleteZone } from '../../features/org/hooks/useOrg';
-import { useCompanies } from '../../features/company/hooks/useCompanies';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { Select } from '../../components/ui/Select';
 import { Modal } from '../../components/ui/Modal';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -27,24 +26,21 @@ function ZoneModal({
 }) {
   const createZone = useCreateZone();
   const updateZone = useUpdateZone();
-  const { data: companies } = useCompanies();
   const [apiError, setApiError] = useState('');
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<{ companyId: string; name: string }>({
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<{ name: string }>({
     defaultValues: editing ? { name: editing.name } : {},
   });
 
-  const companyOptions = companies?.map((c) => ({ value: c.id, label: c.name })) ?? [];
-
   const handleClose = () => { reset(); setApiError(''); onClose(); };
 
-  const onSubmit = async ({ companyId, name }: { companyId: string; name: string }) => {
+  const onSubmit = async ({ name }: { name: string }) => {
     setApiError('');
     try {
       if (editing) {
         await updateZone.mutateAsync({ id: editing.id, name });
       } else {
-        await createZone.mutateAsync({ companyId, name });
+        await createZone.mutateAsync({ name });
       }
       handleClose();
     } catch (err) { setApiError(getApiErrorMessage(err)); }
@@ -66,16 +62,6 @@ function ZoneModal({
     >
       <form id="zone-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {apiError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>}
-        {!editing && (
-          <Select
-            label="Company"
-            required
-            options={companyOptions}
-            placeholder="Select company..."
-            {...register('companyId', { required: 'Required' })}
-            error={errors.companyId?.message}
-          />
-        )}
         <Input
           label="Zone name"
           required
@@ -92,6 +78,7 @@ export function ZonesPage() {
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Zone | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Zone | null>(null);
 
   const { data: zones, isLoading, error } = useZones();
   const deleteZone = useDeleteZone();
@@ -161,7 +148,7 @@ export function ZonesPage() {
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button variant="ghost" size="sm" onClick={() => handleEdit(z)}>Edit</Button>
-                        <Button variant="ghost" size="sm" onClick={() => deleteZone.mutate(z.id)}>Delete</Button>
+                        <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(z)}>Delete</Button>
                       </div>
                     </td>
                   </tr>
@@ -184,6 +171,19 @@ export function ZonesPage() {
       )}
 
       <ZoneModal open={modalOpen} onClose={handleClose} editing={editing} />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        loading={deleteZone.isPending}
+        title="Delete zone"
+        confirmLabel="Delete zone"
+        message={<>Delete <strong>{deleteTarget?.name}</strong>? This cannot be undone.</>}
+        onConfirm={() => {
+          if (!deleteTarget) return;
+          deleteZone.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) });
+        }}
+      />
     </div>
   );
 }

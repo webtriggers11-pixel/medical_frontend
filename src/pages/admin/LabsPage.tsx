@@ -6,6 +6,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -109,6 +110,7 @@ export function LabsPage() {
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Lab | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Lab | null>(null);
 
   const filtered = labs?.filter((l) => {
     const q = search.toLowerCase();
@@ -179,7 +181,7 @@ export function LabsPage() {
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button variant="ghost" size="sm" onClick={() => handleEdit(l)}>Edit</Button>
-                        <Button variant="ghost" size="sm" onClick={() => deleteLab.mutate(l.id)}>Delete</Button>
+                        <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(l)}>Delete</Button>
                       </div>
                     </td>
                   </tr>
@@ -202,6 +204,19 @@ export function LabsPage() {
       )}
 
       <LabModal open={modalOpen} onClose={handleClose} editing={editing} />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        loading={deleteLab.isPending}
+        title="Delete lab"
+        confirmLabel="Delete lab"
+        message={<>Delete <strong>{deleteTarget?.name}</strong>? This cannot be undone.</>}
+        onConfirm={() => {
+          if (!deleteTarget) return;
+          deleteLab.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) });
+        }}
+      />
     </div>
   );
 }

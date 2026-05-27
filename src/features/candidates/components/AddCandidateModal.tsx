@@ -2,7 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { format } from 'date-fns';
 import { Modal } from '../../../components/ui/Modal';
 import { Input } from '../../../components/ui/Input';
-import { Select } from '../../../components/ui/Select';
+import { Combobox } from '../../../components/ui/Combobox';
 import { DatePicker } from '../../../components/ui/DatePicker';
 import { Button } from '../../../components/ui/Button';
 import { useCreateCandidate } from '../hooks/useCreateCandidate';
@@ -83,16 +83,17 @@ export function AddCandidateModal({ open, onClose }: AddCandidateModalProps) {
     setForm((prev) => ({ ...prev, [key]: val }));
     setErrors((prev) => ({ ...prev, [key]: undefined }));
   };
-  const onInput = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+  const onInput = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
     set(key, e.target.value);
+  const onPick = (key: keyof FormState) => (value: string) => set(key, value);
 
   // Cascade resets: changing zone clears city+store; changing city clears store.
-  const onZoneChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setForm((prev) => ({ ...prev, zoneId: e.target.value, cityId: '', storeId: '' }));
+  const onZoneChange = (value: string) => {
+    setForm((prev) => ({ ...prev, zoneId: value, cityId: '', storeId: '' }));
     setErrors((prev) => ({ ...prev, zoneId: undefined }));
   };
-  const onCityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setForm((prev) => ({ ...prev, cityId: e.target.value, storeId: '' }));
+  const onCityChange = (value: string) => {
+    setForm((prev) => ({ ...prev, cityId: value, storeId: '' }));
     setErrors((prev) => ({ ...prev, cityId: undefined }));
   };
 
@@ -152,20 +153,20 @@ export function AddCandidateModal({ open, onClose }: AddCandidateModalProps) {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-4">
-          <Select label="Zone" required placeholder={zonesLoading ? 'Loading…' : 'Select zone'}
+          <Combobox label="Zone" required placeholder={zonesLoading ? 'Loading…' : 'Select zone'}
             options={zoneOptions} value={form.zoneId} onChange={onZoneChange} error={errors.zoneId} />
-          <Select label="City" required placeholder={!form.zoneId ? 'Select zone first' : citiesLoading ? 'Loading…' : 'Select city'}
+          <Combobox label="City" required placeholder={!form.zoneId ? 'Select zone first' : citiesLoading ? 'Loading…' : 'Select city'}
             options={cityOptions} value={form.cityId} onChange={onCityChange} error={errors.cityId} disabled={!form.zoneId} />
-          <Select label="Store" required placeholder={!form.cityId ? 'Select city first' : storesLoading ? 'Loading…' : 'Select store'}
-            options={storeOptions} value={form.storeId} onChange={onInput('storeId')} error={errors.storeId} disabled={!form.cityId} />
+          <Combobox label="Store" required placeholder={!form.cityId ? 'Select city first' : storesLoading ? 'Loading…' : 'Select store'}
+            options={storeOptions} value={form.storeId} onChange={onPick('storeId')} error={errors.storeId} disabled={!form.cityId} />
 
           <Input label="Name" required placeholder="Enter name" value={form.name} onChange={onInput('name')} error={errors.name} />
           <Input label="Employee Code" required placeholder="Enter employee code" value={form.employeeCode} onChange={onInput('employeeCode')} error={errors.employeeCode} />
           <Input label="Mobile Number" required placeholder="9999999999" inputMode="numeric" maxLength={10} value={form.mobile} onChange={onInput('mobile')} error={errors.mobile} />
 
-          <Select label="Gender" required placeholder="Select gender" options={GENDER_OPTIONS} value={form.gender} onChange={onInput('gender')} error={errors.gender} />
+          <Combobox label="Gender" required placeholder="Select gender" options={GENDER_OPTIONS} value={form.gender} onChange={onPick('gender')} error={errors.gender} />
           <Input label="Age" required placeholder="Enter age" inputMode="numeric" maxLength={3} value={form.age} onChange={onInput('age')} error={errors.age} />
-          <Select label="Candidate Type" required placeholder="Select type" options={CANDIDATE_TYPE_OPTIONS} value={form.candidateType} onChange={onInput('candidateType')} error={errors.candidateType} />
+          <Combobox label="Candidate Type" required placeholder="Select type" options={CANDIDATE_TYPE_OPTIONS} value={form.candidateType} onChange={onPick('candidateType')} error={errors.candidateType} />
 
           <DatePicker label="Date of Joining" required value={form.doj} onChange={(d) => set('doj', d)} error={errors.doj} />
           <Input label="Pincode" required placeholder="Enter pincode" inputMode="numeric" maxLength={6} value={form.pincode} onChange={onInput('pincode')} error={errors.pincode} />
