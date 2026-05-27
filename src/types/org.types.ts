@@ -4,6 +4,7 @@ export type StoreStatus = 'ACTIVE' | 'INACTIVE';
 
 export interface Zone {
   id: string;
+  companyId: string;
   name: string;
   status: ZoneStatus;
   createdAt: string;
@@ -12,6 +13,7 @@ export interface Zone {
 export interface City {
   id: string;
   zoneId: string;
+  companyId: string;
   name: string;
   status: CityStatus;
   createdAt: string;
@@ -31,8 +33,8 @@ export interface Store {
   createdAt: string;
 }
 
-export interface CreateZoneInput { name: string; }
-export interface CreateCityInput { zoneId: string; name: string; }
+export interface CreateZoneInput { companyId: string; name: string; }
+export interface CreateCityInput { companyId: string; zoneId: string; name: string; }
 export interface CreateStoreInput {
   companyId: string; cityId: string; storeCode: string; name: string;
   address: string; storeHeadName: string; storeHeadMobile: string; email?: string;

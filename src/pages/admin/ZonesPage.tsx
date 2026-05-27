@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useZones, useCreateZone, useUpdateZone, useDeleteZone } from '../../features/org/hooks/useOrg';
+import { useCompanies } from '../../features/company/hooks/useCompanies';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { Select } from '../../components/ui/Select';
 import { Modal } from '../../components/ui/Modal';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
@@ -25,21 +27,24 @@ function ZoneModal({
 }) {
   const createZone = useCreateZone();
   const updateZone = useUpdateZone();
+  const { data: companies } = useCompanies();
   const [apiError, setApiError] = useState('');
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<{ name: string }>({
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<{ companyId: string; name: string }>({
     defaultValues: editing ? { name: editing.name } : {},
   });
 
+  const companyOptions = companies?.map((c) => ({ value: c.id, label: c.name })) ?? [];
+
   const handleClose = () => { reset(); setApiError(''); onClose(); };
 
-  const onSubmit = async ({ name }: { name: string }) => {
+  const onSubmit = async ({ companyId, name }: { companyId: string; name: string }) => {
     setApiError('');
     try {
       if (editing) {
         await updateZone.mutateAsync({ id: editing.id, name });
       } else {
-        await createZone.mutateAsync({ name });
+        await createZone.mutateAsync({ companyId, name });
       }
       handleClose();
     } catch (err) { setApiError(getApiErrorMessage(err)); }
@@ -61,6 +66,16 @@ function ZoneModal({
     >
       <form id="zone-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {apiError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>}
+        {!editing && (
+          <Select
+            label="Company"
+            required
+            options={companyOptions}
+            placeholder="Select company..."
+            {...register('companyId', { required: 'Required' })}
+            error={errors.companyId?.message}
+          />
+        )}
         <Input
           label="Zone name"
           required

@@ -20,9 +20,9 @@ const PlusIcon = (
 );
 
 function CityModal({
-  open, onClose, zoneId, editing,
+  open, onClose, zoneId, companyId, editing,
 }: {
-  open: boolean; onClose: () => void; zoneId: string; editing: City | null;
+  open: boolean; onClose: () => void; zoneId: string; companyId: string; editing: City | null;
 }) {
   const createCity = useCreateCity();
   const updateCity = useUpdateCity(zoneId);
@@ -40,7 +40,7 @@ function CityModal({
       if (editing) {
         await updateCity.mutateAsync({ id: editing.id, name });
       } else {
-        await createCity.mutateAsync({ zoneId, name });
+        await createCity.mutateAsync({ companyId, zoneId, name });
       }
       handleClose();
     } catch (err) { setApiError(getApiErrorMessage(err)); }
@@ -206,6 +206,7 @@ export function CitiesPage() {
         open={modalOpen}
         onClose={handleClose}
         zoneId={selectedZoneId}
+        companyId={selectedZone?.companyId ?? ''}
         editing={editing}
       />
     </div>

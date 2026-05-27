@@ -5,7 +5,6 @@ export interface UserRecord {
   email: string;
   role: Role;
   isActive: boolean;
-  isDeleted: boolean;
   isEmailVerified: boolean;
   createdAt: string;
   updatedAt: string;
