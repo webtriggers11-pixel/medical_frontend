@@ -133,7 +133,7 @@ function CreatePanelModal({ open, onClose }: { open: boolean; onClose: () => voi
           {...register('name', { required: 'Required' })}
           error={errors.name?.message}
         />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
             label="MRP (₹)"
             type="number"
@@ -149,7 +149,7 @@ function CreatePanelModal({ open, onClose }: { open: boolean; onClose: () => voi
             error={errors.costToVendor?.message}
           />
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Timing" placeholder='e.g. "Same day"' {...register('timing')} />
           <Input label="Lab contact person" {...register('labContact')} />
         </div>
@@ -279,7 +279,7 @@ function SetPricingModal({ panel, open, onClose }: { panel: Panel; open: boolean
           {...register('costToClient', { required: 'Required', min: { value: 0, message: 'Must be ≥ 0' } })}
           error={errors.costToClient?.message}
         />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
             label="Loyalty discount after N bookings"
             type="number"

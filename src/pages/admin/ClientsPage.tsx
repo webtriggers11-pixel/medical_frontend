@@ -71,7 +71,7 @@ function AddClientModal({ open, onClose }: { open: boolean; onClose: () => void 
           label="Client name"
           {...register('name')}
         />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
             label="Email"
             type="email"

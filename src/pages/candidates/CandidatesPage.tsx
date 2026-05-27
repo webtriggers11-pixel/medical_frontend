@@ -49,10 +49,66 @@ const UploadIcon = (
   </svg>
 );
 
+type TypeFilter = 'ALL' | CandidateType;
+
+const STAT_TILES: {
+  key: TypeFilter;
+  label: string;
+  bg: string;
+  color: string;
+  icon: React.ReactNode;
+}[] = [
+  {
+    key: 'ALL',
+    label: 'Total candidates',
+    bg: 'bg-primary-50',
+    color: 'text-primary-600',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+      </svg>
+    ),
+  },
+  {
+    key: 'NEW_JOINER',
+    label: 'New joiners',
+    bg: 'bg-emerald-50',
+    color: 'text-emerald-600',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM3 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 019.374 21c-2.331 0-4.512-.645-6.374-1.766z" />
+      </svg>
+    ),
+  },
+  {
+    key: 'EXISTING',
+    label: 'Existing',
+    bg: 'bg-sky-50',
+    color: 'text-sky-600',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0z" />
+      </svg>
+    ),
+  },
+  {
+    key: 'ANNUAL',
+    label: 'Annual',
+    bg: 'bg-amber-50',
+    color: 'text-amber-600',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+];
+
 export function CandidatesPage() {
   const navigate = useNavigate();
   const { data: candidates, isLoading, error } = useCandidates();
   const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('ALL');
   const [bulkOpen, setBulkOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
@@ -65,7 +121,17 @@ export function CandidatesPage() {
     }
   };
 
+  const counts = (candidates ?? []).reduce(
+    (acc, c) => {
+      acc.ALL += 1;
+      acc[c.candidateType] += 1;
+      return acc;
+    },
+    { ALL: 0, NEW_JOINER: 0, EXISTING: 0, ANNUAL: 0 } as Record<TypeFilter, number>,
+  );
+
   const filtered = candidates?.filter((c) => {
+    if (typeFilter !== 'ALL' && c.candidateType !== typeFilter) return false;
     const q = search.toLowerCase();
     return (
       c.name.toLowerCase().includes(q) ||
@@ -75,6 +141,9 @@ export function CandidatesPage() {
       (c.store?.name ?? '').toLowerCase().includes(q)
     );
   });
+
+  const hasFilter = !!search || typeFilter !== 'ALL';
+  const isEmpty = !!candidates && candidates.length === 0;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -106,15 +175,58 @@ export function CandidatesPage() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-3">
+      {/* Summary tiles — also act as type filters */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {STAT_TILES.map((t) => {
+          const active = typeFilter === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTypeFilter(t.key)}
+              className={`group rounded-2xl border bg-surface p-4 text-left shadow-card transition-all hover:shadow-card-hover ${
+                active ? 'border-primary-400 ring-2 ring-primary-500/15' : 'border-border/70'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-2xl font-bold tracking-tight text-slate-900">{counts[t.key]}</span>
+                <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${t.bg} ${t.color}`}>
+                  {t.icon}
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-slate-500">{t.label}</p>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <SearchInput
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onClear={() => setSearch('')}
           placeholder="Search candidates..."
-          className="w-full sm:w-72"
+          className="w-full sm:w-80"
         />
+        <div className="flex items-center gap-3 text-sm text-slate-500">
+          {filtered && (
+            <span>
+              {filtered.length} {filtered.length === 1 ? 'candidate' : 'candidates'}
+              {typeFilter !== 'ALL' && <> &middot; {typeLabel[typeFilter]}</>}
+            </span>
+          )}
+          {hasFilter && (
+            <button
+              onClick={() => {
+                setSearch('');
+                setTypeFilter('ALL');
+              }}
+              className="font-medium text-primary-600 transition-colors hover:text-primary-700"
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {isLoading && <SkeletonTable rows={5} />}
@@ -179,7 +291,7 @@ export function CandidatesPage() {
         </Card>
       )}
 
-      {filtered && filtered.length === 0 && search && (
+      {filtered && filtered.length === 0 && !isEmpty && (
         <Card>
           <EmptyState
             icon={
@@ -187,18 +299,25 @@ export function CandidatesPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
               </svg>
             }
-            title="No candidates found"
-            description={`No results for "${search}". Try a different search term.`}
+            title="No matching candidates"
+            description="Try a different search term or candidate type."
             action={
-              <Button variant="secondary" size="sm" onClick={() => setSearch('')}>
-                Clear search
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setSearch('');
+                  setTypeFilter('ALL');
+                }}
+              >
+                Clear filters
               </Button>
             }
           />
         </Card>
       )}
 
-      {filtered && filtered.length === 0 && !search && (
+      {isEmpty && (
         <Card>
           <EmptyState
             icon={

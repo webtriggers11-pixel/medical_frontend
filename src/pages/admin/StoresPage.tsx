@@ -104,7 +104,7 @@ function StoreModal({
       <form id="store-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {apiError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Combobox
             label="Zone"
             required
@@ -137,7 +137,7 @@ function StoreModal({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
             label="Store name"
             required
@@ -160,7 +160,7 @@ function StoreModal({
           {...register('address', { required: 'Required' })}
           error={errors.address?.message}
         />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
             label="Store head name"
             required

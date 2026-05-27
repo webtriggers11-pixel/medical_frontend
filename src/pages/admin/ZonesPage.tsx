@@ -109,7 +109,7 @@ export function ZonesPage() {
           onChange={(e) => setSearch(e.target.value)}
           onClear={() => setSearch('')}
           placeholder="Search zones..."
-          className="w-72"
+          className="w-full sm:w-72"
         />
       </div>
 

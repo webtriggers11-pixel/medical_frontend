@@ -75,7 +75,7 @@ function LabModal({ open, onClose, editing }: { open: boolean; onClose: () => vo
           {...register('name', { required: 'Required' })}
           error={errors.name?.message}
         />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
             label="Contact name"
             required
