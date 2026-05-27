@@ -50,7 +50,7 @@ const StoreIcon = (
   </svg>
 );
 
-/* ── stepper ────────────────────────────────────────────────────────── */
+/* ── steps ──────────────────────────────────────────────────────────── */
 
 const STEPS = [
   { title: 'Zone', desc: 'Choose a region', icon: MapIcon },
@@ -58,49 +58,29 @@ const STEPS = [
   { title: 'Details', desc: 'Store information', icon: StoreIcon },
 ];
 
-function Stepper({ current }: { current: number }) {
+/* Compact horizontal stepper — shown on mobile, above the step card. */
+function StepperMobile({ current }: { current: number }) {
   return (
-    <div className="flex items-center">
+    <div className="flex items-center lg:hidden">
       {STEPS.map((s, i) => {
         const done = i < current;
         const active = i === current;
         return (
           <div key={s.title} className="flex flex-1 items-center last:flex-none">
-            <div className="flex items-center gap-3">
-              <div
-                className={`
-                  relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border transition-all duration-300
-                  ${done ? 'border-primary-600 bg-primary-600 text-white shadow-sm' : ''}
-                  ${active ? 'border-primary-500 bg-primary-50 text-primary-600 ring-4 ring-primary-500/10 scale-105' : ''}
-                  ${!done && !active ? 'border-border bg-surface text-slate-400' : ''}
-                `}
-              >
-                <span
-                  className={`transition-all duration-300 ${done ? 'scale-100 opacity-100' : 'scale-50 opacity-0 absolute'}`}
-                >
-                  {CheckIcon}
-                </span>
-                <span
-                  className={`transition-all duration-300 ${done ? 'scale-50 opacity-0 absolute' : 'scale-100 opacity-100'}`}
-                >
-                  {s.icon}
-                </span>
-              </div>
-              <div className="hidden sm:block">
-                <p
-                  className={`text-sm font-semibold transition-colors ${active || done ? 'text-slate-900' : 'text-slate-400'}`}
-                >
-                  {s.title}
-                </p>
-                <p className="text-xs text-slate-400">{s.desc}</p>
-              </div>
+            <div
+              className={`
+                relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border transition-all duration-300
+                ${done ? 'border-primary-600 bg-primary-600 text-white shadow-sm' : ''}
+                ${active ? 'border-primary-500 bg-primary-50 text-primary-600 ring-4 ring-primary-500/10' : ''}
+                ${!done && !active ? 'border-border bg-surface text-slate-400' : ''}
+              `}
+            >
+              <span className={`absolute transition-all duration-300 ${done ? 'scale-100 opacity-100' : 'scale-50 opacity-0'}`}>{CheckIcon}</span>
+              <span className={`transition-all duration-300 ${done ? 'scale-50 opacity-0 absolute' : 'scale-100 opacity-100'}`}>{s.icon}</span>
             </div>
             {i < STEPS.length - 1 && (
-              <div className="mx-3 h-0.5 flex-1 overflow-hidden rounded-full bg-border sm:mx-4">
-                <div
-                  className="h-full rounded-full bg-primary-500 transition-all duration-500 ease-out"
-                  style={{ width: done ? '100%' : '0%' }}
-                />
+              <div className="mx-2.5 h-0.5 flex-1 overflow-hidden rounded-full bg-border">
+                <div className="h-full rounded-full bg-primary-500 transition-all duration-500 ease-out" style={{ width: done ? '100%' : '0%' }} />
               </div>
             )}
           </div>
@@ -110,15 +90,69 @@ function Stepper({ current }: { current: number }) {
   );
 }
 
+/* Vertical stepper that doubles as a live build summary (desktop sidebar). */
+function StepperVertical({ current, values }: { current: number; values: (string | undefined)[] }) {
+  return (
+    <ol className="relative">
+      {STEPS.map((s, i) => {
+        const done = i < current;
+        const active = i === current;
+        const value = values[i];
+        return (
+          <li key={s.title} className="relative flex gap-3.5 pb-7 last:pb-0">
+            {i < STEPS.length - 1 && (
+              <span
+                className={`absolute left-[19px] top-11 h-[calc(100%-2.5rem)] w-px transition-colors duration-500 ${done ? 'bg-primary-400' : 'bg-border'}`}
+              />
+            )}
+            <div
+              className={`
+                relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border transition-all duration-300
+                ${done ? 'border-primary-600 bg-primary-600 text-white shadow-sm' : ''}
+                ${active ? 'border-primary-500 bg-primary-50 text-primary-600 ring-4 ring-primary-500/10' : ''}
+                ${!done && !active ? 'border-border bg-surface text-slate-400' : ''}
+              `}
+            >
+              <span className={`absolute transition-all duration-300 ${done ? 'scale-100 opacity-100' : 'scale-50 opacity-0'}`}>{CheckIcon}</span>
+              <span className={`transition-all duration-300 ${done ? 'scale-50 opacity-0 absolute' : 'scale-100 opacity-100'}`}>{s.icon}</span>
+            </div>
+            <div className="min-w-0 pt-1">
+              <p className={`text-sm font-semibold transition-colors ${active || done ? 'text-slate-900' : 'text-slate-400'}`}>{s.title}</p>
+              <p className={`truncate text-xs transition-colors ${value ? 'font-medium text-primary-600' : 'text-slate-400'}`}>
+                {value || s.desc}
+              </p>
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 /* ── locked summary field (step 3) ─────────────────────────────────── */
 
 function LockedField({ label, value }: { label: string; value: string }) {
   return (
     <div className="space-y-1.5">
       <label className="block text-sm font-medium text-slate-700">{label}</label>
-      <div className="flex h-10 w-full items-center gap-2.5 rounded-xl border border-border bg-slate-50 px-3.5 text-sm">
-        <span className="text-slate-400">{LockIcon}</span>
+      <div className="flex h-10 w-full items-center gap-2.5 rounded-xl border border-border bg-white px-3.5 text-sm">
+        <span className="text-primary-500">{LockIcon}</span>
         <span className="flex-1 truncate font-medium text-slate-700">{value}</span>
+      </div>
+    </div>
+  );
+}
+
+/* Header for each step card. */
+function StepHeading({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle: string }) {
+  return (
+    <div className="flex items-start gap-3.5">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 text-white shadow-sm">
+        {icon}
+      </div>
+      <div>
+        <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+        <p className="text-sm text-slate-500">{subtitle}</p>
       </div>
     </div>
   );
@@ -152,11 +186,13 @@ export function AddStorePage() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<StoreFormValues>();
 
   const selectedZone = zones?.find((z) => z.id === zoneId);
   const selectedCity = cities?.find((c) => c.id === cityId);
+  const watchedName = watch('name');
 
   const zoneOptions = zones?.map((z) => ({ value: z.id, label: z.name })) ?? [];
   const cityOptions = cities?.map((c) => ({ value: c.id, label: c.name })) ?? [];
@@ -199,211 +235,205 @@ export function AddStorePage() {
   };
 
   const canContinue = step === 0 ? !!zoneId : step === 1 ? !!cityId : true;
+  const summaryValues = [selectedZone?.name, selectedCity?.name, watchedName?.trim() || undefined];
 
   /* ── render ───────────────────────────────────────────────────────── */
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8 animate-fade-in pb-10">
-      {/* Header */}
-      <div className="space-y-4">
-        <button
-          onClick={() => navigate(storesPath)}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-800"
-        >
-          {ArrowLeftIcon}
-          Back to stores
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Add a new store</h1>
-          <p className="mt-1 text-slate-500">
-            Set the location, then fill in the store details — done in three quick steps.
+    <div className="mx-auto max-w-5xl space-y-6 animate-fade-in pb-10">
+      {/* Back link */}
+      <button
+        onClick={() => navigate(storesPath)}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-800"
+      >
+        {ArrowLeftIcon}
+        Back to stores
+      </button>
+
+      {/* Immersive gradient hero */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-600 via-primary-500 to-primary-700 px-6 py-7 text-white shadow-lg sm:px-9 sm:py-8">
+        <div className="pointer-events-none absolute -right-12 -top-20 h-52 w-52 rounded-full bg-white/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 right-28 h-48 w-48 rounded-full bg-primary-300/40 blur-3xl" />
+        <div className="pointer-events-none absolute right-6 top-1/2 hidden -translate-y-1/2 text-white/15 sm:block [&_svg]:h-44 [&_svg]:w-44">
+          {StoreIcon}
+        </div>
+        <div className="relative">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium tracking-wide backdrop-blur">
+            <span className="h-1.5 w-1.5 rounded-full bg-white" />
+            New store
+          </span>
+          <h1 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">Add a new store</h1>
+          <p className="mt-1.5 max-w-md text-sm text-white/80">
+            Pin the location, then fill in the details — done in three quick steps.
           </p>
         </div>
       </div>
 
-      {/* Stepper */}
-      <div className="rounded-2xl border border-border bg-surface p-5 shadow-card">
-        <Stepper current={step} />
-      </div>
-
-      {/* Step card */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
-        {/* gradient accent strip */}
-        <div className="h-1 w-full bg-gradient-to-r from-primary-500 via-primary-400 to-primary-600" />
-
-        <div className="p-6 sm:p-8">
-          {apiError && (
-            <p className="mb-5 rounded-xl bg-danger-light px-4 py-2.5 text-sm font-medium text-red-600">
-              {apiError}
-            </p>
-          )}
-
-          {/* STEP 1 — ZONE */}
-          {step === 0 && (
-            <div key="step-0" className="space-y-6 animate-slide-in-right">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-600">
-                  {MapIcon}
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Which zone?</h2>
-                  <p className="text-sm text-slate-500">
-                    Search and select the zone this store belongs to.
-                  </p>
-                </div>
-              </div>
-
-              <Combobox
-                label="Zone"
-                required
-                options={zoneOptions}
-                value={zoneId}
-                onChange={handleZoneSelect}
-                placeholder="Select a zone…"
-                searchPlaceholder="Search zones…"
-                emptyText="No zones found"
-              />
+      {/* Two-pane: live summary + active step */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_1fr]">
+        {/* Summary sidebar (desktop) */}
+        <aside className="hidden lg:block">
+          <div className="glass sticky top-6 space-y-6 rounded-3xl border border-border/70 p-6 shadow-card">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-primary-600">Building</p>
+              <p className="mt-1 truncate text-base font-semibold text-slate-900">
+                {watchedName?.trim() || 'Untitled store'}
+              </p>
             </div>
-          )}
+            <StepperVertical current={step} values={summaryValues} />
+          </div>
+        </aside>
 
-          {/* STEP 2 — CITY */}
-          {step === 1 && (
-            <div key="step-1" className="space-y-6 animate-slide-in-right">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-600">
-                  {BuildingIcon}
+        {/* Active step */}
+        <div className="space-y-5">
+          <StepperMobile current={step} />
+
+          <div className="overflow-hidden rounded-3xl border border-border/70 bg-surface shadow-card transition-shadow hover:shadow-card-hover">
+            <div className="h-1.5 w-full bg-gradient-to-r from-primary-500 via-primary-400 to-primary-600" />
+
+            <div className="p-6 sm:p-8">
+              {apiError && (
+                <p className="mb-5 flex items-center gap-2 rounded-xl border border-danger/20 bg-danger-light px-4 py-2.5 text-sm font-medium text-red-600 animate-slide-in">
+                  {apiError}
+                </p>
+              )}
+
+              {/* STEP 1 — ZONE */}
+              {step === 0 && (
+                <div key="step-0" className="space-y-6 animate-slide-in-right">
+                  <StepHeading icon={MapIcon} title="Which zone?" subtitle="Search and select the zone this store belongs to." />
+                  <Combobox
+                    label="Zone"
+                    required
+                    options={zoneOptions}
+                    value={zoneId}
+                    onChange={handleZoneSelect}
+                    placeholder="Select a zone…"
+                    searchPlaceholder="Search zones…"
+                    emptyText="No zones found"
+                  />
                 </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900">
-                    Which city in {selectedZone?.name}?
-                  </h2>
-                  <p className="text-sm text-slate-500">
-                    Search and select the city in this zone for the store.
-                  </p>
+              )}
+
+              {/* STEP 2 — CITY */}
+              {step === 1 && (
+                <div key="step-1" className="space-y-6 animate-slide-in-right">
+                  <StepHeading
+                    icon={BuildingIcon}
+                    title={`Which city in ${selectedZone?.name}?`}
+                    subtitle="Search and select the city in this zone for the store."
+                  />
+                  <Combobox
+                    label="City"
+                    required
+                    options={cityOptions}
+                    value={cityId}
+                    onChange={(id) => {
+                      setCityId(id);
+                      setApiError('');
+                    }}
+                    placeholder="Select a city…"
+                    searchPlaceholder="Search cities…"
+                    emptyText="No cities in this zone"
+                  />
+                  {selectedCity && (
+                    <div className="flex items-center gap-2 rounded-xl border border-success/30 bg-success-light/50 px-4 py-3 text-sm text-emerald-700 animate-slide-in">
+                      <span className="text-success">{CheckIcon}</span>
+                      <span>
+                        <span className="font-semibold">{selectedCity.name}</span> selected in{' '}
+                        <span className="font-semibold">{selectedZone?.name}</span>.
+                      </span>
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
 
-              <Combobox
-                label="City"
-                required
-                options={cityOptions}
-                value={cityId}
-                onChange={(id) => {
-                  setCityId(id);
-                  setApiError('');
-                }}
-                placeholder="Select a city…"
-                searchPlaceholder="Search cities…"
-                emptyText="No cities in this zone"
-              />
+              {/* STEP 3 — DETAILS */}
+              {step === 2 && (
+                <div key="step-2" className="space-y-6 animate-slide-in-right">
+                  <StepHeading icon={StoreIcon} title="Store details" subtitle="Location is locked in — just fill in the rest to create the store." />
 
-              {selectedCity && (
-                <div className="flex items-center gap-2 rounded-xl border border-success/30 bg-success-light/50 px-4 py-3 text-sm text-emerald-700 animate-slide-in">
-                  <span className="text-success">{CheckIcon}</span>
-                  <span>
-                    <span className="font-semibold">{selectedCity.name}</span> selected in{' '}
-                    <span className="font-semibold">{selectedZone?.name}</span>.
-                  </span>
+                  <div className="grid grid-cols-1 gap-4 rounded-2xl border border-border/60 bg-slate-50/70 p-4 sm:grid-cols-2">
+                    <LockedField label="Zone" value={selectedZone?.name ?? '—'} />
+                    <LockedField label="City" value={selectedCity?.name ?? '—'} />
+                  </div>
+
+                  <form id="store-details-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <Input
+                        label="Store name"
+                        placeholder="e.g. Andheri Branch"
+                        {...register('name', { required: 'Store name is required' })}
+                        error={errors.name?.message}
+                      />
+                      <Input
+                        label="Store code"
+                        placeholder="e.g. MUM-AND-001"
+                        {...register('storeCode', { required: 'Store code is required' })}
+                        error={errors.storeCode?.message}
+                      />
+                    </div>
+                    <Input
+                      label="Address"
+                      placeholder="Full store address"
+                      {...register('address', { required: 'Address is required' })}
+                      error={errors.address?.message}
+                    />
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <Input
+                        label="Store head name"
+                        placeholder="e.g. Rahul Sharma"
+                        {...register('storeHeadName', { required: 'Store head name is required' })}
+                        error={errors.storeHeadName?.message}
+                      />
+                      <Input
+                        label="Store head mobile"
+                        placeholder="e.g. 9876543210"
+                        {...register('storeHeadMobile', { required: 'Store head mobile is required' })}
+                        error={errors.storeHeadMobile?.message}
+                      />
+                    </div>
+                    <Input
+                      label="Email"
+                      type="email"
+                      placeholder="store@example.com (optional)"
+                      {...register('email')}
+                    />
+                  </form>
                 </div>
               )}
             </div>
-          )}
 
-          {/* STEP 3 — DETAILS */}
-          {step === 2 && (
-            <div key="step-2" className="space-y-6 animate-slide-in-right">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-600">
-                  {StoreIcon}
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Store details</h2>
-                  <p className="text-sm text-slate-500">
-                    Location is locked in — just fill in the rest to create the store.
-                  </p>
-                </div>
-              </div>
-
-              {/* Locked location summary */}
-              <div className="grid grid-cols-1 gap-4 rounded-xl bg-slate-50/70 p-4 sm:grid-cols-2">
-                <LockedField label="Zone" value={selectedZone?.name ?? '—'} />
-                <LockedField label="City" value={selectedCity?.name ?? '—'} />
-              </div>
-
-              <form id="store-details-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Input
-                    label="Store name"
-                    placeholder="e.g. Andheri Branch"
-                    {...register('name', { required: 'Store name is required' })}
-                    error={errors.name?.message}
-                  />
-                  <Input
-                    label="Store code"
-                    placeholder="e.g. MUM-AND-001"
-                    {...register('storeCode', { required: 'Store code is required' })}
-                    error={errors.storeCode?.message}
-                  />
-                </div>
-                <Input
-                  label="Address"
-                  placeholder="Full store address"
-                  {...register('address', { required: 'Address is required' })}
-                  error={errors.address?.message}
-                />
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Input
-                    label="Store head name"
-                    placeholder="e.g. Rahul Sharma"
-                    {...register('storeHeadName', { required: 'Store head name is required' })}
-                    error={errors.storeHeadName?.message}
-                  />
-                  <Input
-                    label="Store head mobile"
-                    placeholder="e.g. 9876543210"
-                    {...register('storeHeadMobile', { required: 'Store head mobile is required' })}
-                    error={errors.storeHeadMobile?.message}
-                  />
-                </div>
-                <Input
-                  label="Email"
-                  type="email"
-                  placeholder="store@example.com (optional)"
-                  {...register('email')}
-                />
-              </form>
-            </div>
-          )}
-        </div>
-
-        {/* Footer nav */}
-        <div className="flex items-center justify-between gap-3 border-t border-border bg-slate-50/50 px-6 py-4 sm:px-8">
-          <Button
-            variant="ghost"
-            onClick={step === 0 ? () => navigate(storesPath) : goBack}
-            icon={ArrowLeftIcon}
-          >
-            {step === 0 ? 'Cancel' : 'Back'}
-          </Button>
-
-          <div className="flex items-center gap-3">
-            <span className="hidden text-xs font-medium text-slate-400 sm:block">
-              Step {step + 1} of {STEPS.length}
-            </span>
-            {step < 2 ? (
-              <Button onClick={goNext} disabled={!canContinue} iconRight={ArrowRightIcon}>
-                Continue
-              </Button>
-            ) : (
+            {/* Footer nav */}
+            <div className="flex items-center justify-between gap-3 border-t border-border bg-slate-50/50 px-6 py-4 sm:px-8">
               <Button
-                type="submit"
-                form="store-details-form"
-                loading={isSubmitting || createStore.isPending}
-                icon={CheckIcon}
+                variant="ghost"
+                onClick={step === 0 ? () => navigate(storesPath) : goBack}
+                icon={ArrowLeftIcon}
               >
-                Create store
+                {step === 0 ? 'Cancel' : 'Back'}
               </Button>
-            )}
+
+              <div className="flex items-center gap-3">
+                <span className="hidden text-xs font-medium text-slate-400 sm:block">
+                  Step {step + 1} of {STEPS.length}
+                </span>
+                {step < 2 ? (
+                  <Button onClick={goNext} disabled={!canContinue} iconRight={ArrowRightIcon}>
+                    Continue
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    form="store-details-form"
+                    loading={isSubmitting || createStore.isPending}
+                    icon={CheckIcon}
+                  >
+                    Create store
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
