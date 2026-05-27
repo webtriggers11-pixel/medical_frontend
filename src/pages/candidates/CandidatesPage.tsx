@@ -1,6 +1,6 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCandidates } from '../../features/candidates/hooks/useCandidates';
-import { AddCandidateModal } from '../../features/candidates/components/AddCandidateModal';
 import { BulkUploadModal } from '../../features/candidates/components/BulkUploadModal';
 import { candidatesService } from '../../services/candidates.service';
 import { Card } from '../../components/ui/Card';
@@ -50,9 +50,9 @@ const UploadIcon = (
 );
 
 export function CandidatesPage() {
+  const navigate = useNavigate();
   const { data: candidates, isLoading, error } = useCandidates();
   const [search, setSearch] = useState('');
-  const [addOpen, setAddOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
@@ -89,7 +89,7 @@ export function CandidatesPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <Button icon={PlusIcon} onClick={() => setAddOpen(true)}>
+          <Button icon={PlusIcon} onClick={() => navigate('/candidates/new')}>
             Add new candidate
           </Button>
           <Button
@@ -209,7 +209,7 @@ export function CandidatesPage() {
             title="No candidates yet"
             description="Add your first candidate or import a batch with the bulk upload template."
             action={
-              <Button size="sm" icon={PlusIcon} onClick={() => setAddOpen(true)}>
+              <Button size="sm" icon={PlusIcon} onClick={() => navigate('/candidates/new')}>
                 Add new candidate
               </Button>
             }
@@ -217,7 +217,6 @@ export function CandidatesPage() {
         </Card>
       )}
 
-      <AddCandidateModal open={addOpen} onClose={() => setAddOpen(false)} />
       <BulkUploadModal open={bulkOpen} onClose={() => setBulkOpen(false)} />
     </div>
   );

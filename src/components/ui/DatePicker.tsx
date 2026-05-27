@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { DayPicker } from 'react-day-picker';
 import { format } from 'date-fns';
 import 'react-day-picker/style.css';
@@ -24,21 +25,63 @@ export function DatePicker({
   disableFuture,
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+
+  // Position the portal popover relative to the trigger, flipping above when
+  // there isn't room below and clamping inside the viewport.
+  const reposition = () => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const r = trigger.getBoundingClientRect();
+    const pop = popoverRef.current;
+    const ph = pop?.offsetHeight ?? 340;
+    const pw = pop?.offsetWidth ?? r.width;
+    const gap = 8;
+
+    let top = r.bottom + gap;
+    if (top + ph > window.innerHeight - gap && r.top - ph - gap > gap) {
+      top = r.top - ph - gap; // flip above
+    }
+    let left = r.left;
+    if (left + pw > window.innerWidth - gap) left = window.innerWidth - pw - gap;
+    if (left < gap) left = gap;
+
+    setCoords({ top, left });
+  };
+
+  useLayoutEffect(() => {
+    if (open) reposition();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+    const onScrollOrResize = () => reposition();
+    const onPointerDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (triggerRef.current?.contains(t) || popoverRef.current?.contains(t)) return;
+      setOpen(false);
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('scroll', onScrollOrResize, true);
+    window.addEventListener('resize', onScrollOrResize);
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('scroll', onScrollOrResize, true);
+      window.removeEventListener('resize', onScrollOrResize);
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKey);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   return (
-    <div className="space-y-1.5" ref={containerRef}>
+    <div className="space-y-1.5">
       {label && (
         <label className="block text-sm font-medium text-slate-700">
           {label}
@@ -47,6 +90,7 @@ export function DatePicker({
       )}
       <div className="relative">
         <button
+          ref={triggerRef}
           type="button"
           onClick={() => setOpen((o) => !o)}
           className={`
@@ -65,9 +109,22 @@ export function DatePicker({
             </svg>
           </span>
         </button>
+      </div>
+      {error && <p className="text-xs text-danger font-medium">{error}</p>}
 
-        {open && (
-          <div className="absolute z-50 mt-2 rounded-2xl border border-border bg-surface shadow-xl p-3 animate-scale-in">
+      {open &&
+        createPortal(
+          <div
+            ref={popoverRef}
+            style={{
+              position: 'fixed',
+              top: coords?.top ?? -9999,
+              left: coords?.left ?? -9999,
+              zIndex: 1000,
+              visibility: coords ? 'visible' : 'hidden',
+            }}
+            className="rounded-2xl border border-border bg-surface shadow-xl p-3 animate-scale-in"
+          >
             <DayPicker
               mode="single"
               selected={value}
@@ -81,10 +138,9 @@ export function DatePicker({
                 setOpen(false);
               }}
             />
-          </div>
+          </div>,
+          document.body,
         )}
-      </div>
-      {error && <p className="text-xs text-danger font-medium">{error}</p>}
     </div>
   );
 }

@@ -11,29 +11,20 @@ import { Input } from '../../components/ui/Input';
 import { Combobox } from '../../components/ui/Combobox';
 import { getApiErrorMessage } from '../../lib/apiError';
 import type { CreateStoreInput } from '../../types/org.types';
+import {
+  type WizardStep,
+  WizardHero,
+  StepperMobile,
+  StepperVertical,
+  StepHeading,
+  LockedField,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  CheckIcon,
+} from '../../components/wizard/Wizard';
 
-/* ── icons ──────────────────────────────────────────────────────────── */
+/* ── step icons ─────────────────────────────────────────────────────── */
 
-const ArrowLeftIcon = (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-  </svg>
-);
-const ArrowRightIcon = (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-  </svg>
-);
-const CheckIcon = (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-  </svg>
-);
-const LockIcon = (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 0h10.5a2.25 2.25 0 012.25 2.25v6.75a2.25 2.25 0 01-2.25 2.25H6.75a2.25 2.25 0 01-2.25-2.25v-6.75a2.25 2.25 0 012.25-2.25z" />
-  </svg>
-);
 const MapIcon = (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" />
@@ -50,113 +41,11 @@ const StoreIcon = (
   </svg>
 );
 
-/* ── steps ──────────────────────────────────────────────────────────── */
-
-const STEPS = [
+const STEPS: WizardStep[] = [
   { title: 'Zone', desc: 'Choose a region', icon: MapIcon },
   { title: 'City', desc: 'Choose a city', icon: BuildingIcon },
   { title: 'Details', desc: 'Store information', icon: StoreIcon },
 ];
-
-/* Compact horizontal stepper — shown on mobile, above the step card. */
-function StepperMobile({ current }: { current: number }) {
-  return (
-    <div className="flex items-center lg:hidden">
-      {STEPS.map((s, i) => {
-        const done = i < current;
-        const active = i === current;
-        return (
-          <div key={s.title} className="flex flex-1 items-center last:flex-none">
-            <div
-              className={`
-                relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border transition-all duration-300
-                ${done ? 'border-primary-600 bg-primary-600 text-white shadow-sm' : ''}
-                ${active ? 'border-primary-500 bg-primary-50 text-primary-600 ring-4 ring-primary-500/10' : ''}
-                ${!done && !active ? 'border-border bg-surface text-slate-400' : ''}
-              `}
-            >
-              <span className={`absolute transition-all duration-300 ${done ? 'scale-100 opacity-100' : 'scale-50 opacity-0'}`}>{CheckIcon}</span>
-              <span className={`transition-all duration-300 ${done ? 'scale-50 opacity-0 absolute' : 'scale-100 opacity-100'}`}>{s.icon}</span>
-            </div>
-            {i < STEPS.length - 1 && (
-              <div className="mx-2.5 h-0.5 flex-1 overflow-hidden rounded-full bg-border">
-                <div className="h-full rounded-full bg-primary-500 transition-all duration-500 ease-out" style={{ width: done ? '100%' : '0%' }} />
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/* Vertical stepper that doubles as a live build summary (desktop sidebar). */
-function StepperVertical({ current, values }: { current: number; values: (string | undefined)[] }) {
-  return (
-    <ol className="relative">
-      {STEPS.map((s, i) => {
-        const done = i < current;
-        const active = i === current;
-        const value = values[i];
-        return (
-          <li key={s.title} className="relative flex gap-3.5 pb-7 last:pb-0">
-            {i < STEPS.length - 1 && (
-              <span
-                className={`absolute left-[19px] top-11 h-[calc(100%-2.5rem)] w-px transition-colors duration-500 ${done ? 'bg-primary-400' : 'bg-border'}`}
-              />
-            )}
-            <div
-              className={`
-                relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border transition-all duration-300
-                ${done ? 'border-primary-600 bg-primary-600 text-white shadow-sm' : ''}
-                ${active ? 'border-primary-500 bg-primary-50 text-primary-600 ring-4 ring-primary-500/10' : ''}
-                ${!done && !active ? 'border-border bg-surface text-slate-400' : ''}
-              `}
-            >
-              <span className={`absolute transition-all duration-300 ${done ? 'scale-100 opacity-100' : 'scale-50 opacity-0'}`}>{CheckIcon}</span>
-              <span className={`transition-all duration-300 ${done ? 'scale-50 opacity-0 absolute' : 'scale-100 opacity-100'}`}>{s.icon}</span>
-            </div>
-            <div className="min-w-0 pt-1">
-              <p className={`text-sm font-semibold transition-colors ${active || done ? 'text-slate-900' : 'text-slate-400'}`}>{s.title}</p>
-              <p className={`truncate text-xs transition-colors ${value ? 'font-medium text-primary-600' : 'text-slate-400'}`}>
-                {value || s.desc}
-              </p>
-            </div>
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
-/* ── locked summary field (step 3) ─────────────────────────────────── */
-
-function LockedField({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="space-y-1.5">
-      <label className="block text-sm font-medium text-slate-700">{label}</label>
-      <div className="flex h-10 w-full items-center gap-2.5 rounded-xl border border-border bg-white px-3.5 text-sm">
-        <span className="text-primary-500">{LockIcon}</span>
-        <span className="flex-1 truncate font-medium text-slate-700">{value}</span>
-      </div>
-    </div>
-  );
-}
-
-/* Header for each step card. */
-function StepHeading({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle: string }) {
-  return (
-    <div className="flex items-start gap-3.5">
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 text-white shadow-sm">
-        {icon}
-      </div>
-      <div>
-        <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-        <p className="text-sm text-slate-500">{subtitle}</p>
-      </div>
-    </div>
-  );
-}
 
 /* ── form types ─────────────────────────────────────────────────────── */
 
@@ -250,24 +139,12 @@ export function AddStorePage() {
         Back to stores
       </button>
 
-      {/* Immersive gradient hero */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-600 via-primary-500 to-primary-700 px-6 py-7 text-white shadow-lg sm:px-9 sm:py-8">
-        <div className="pointer-events-none absolute -right-12 -top-20 h-52 w-52 rounded-full bg-white/15 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 right-28 h-48 w-48 rounded-full bg-primary-300/40 blur-3xl" />
-        <div className="pointer-events-none absolute right-6 top-1/2 hidden -translate-y-1/2 text-white/15 sm:block [&_svg]:h-44 [&_svg]:w-44">
-          {StoreIcon}
-        </div>
-        <div className="relative">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium tracking-wide backdrop-blur">
-            <span className="h-1.5 w-1.5 rounded-full bg-white" />
-            New store
-          </span>
-          <h1 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">Add a new store</h1>
-          <p className="mt-1.5 max-w-md text-sm text-white/80">
-            Pin the location, then fill in the details — done in three quick steps.
-          </p>
-        </div>
-      </div>
+      <WizardHero
+        eyebrow="New store"
+        title="Add a new store"
+        subtitle="Pin the location, then fill in the details — done in three quick steps."
+        watermark={StoreIcon}
+      />
 
       {/* Two-pane: live summary + active step */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_1fr]">
@@ -280,13 +157,13 @@ export function AddStorePage() {
                 {watchedName?.trim() || 'Untitled store'}
               </p>
             </div>
-            <StepperVertical current={step} values={summaryValues} />
+            <StepperVertical steps={STEPS} current={step} values={summaryValues} />
           </div>
         </aside>
 
         {/* Active step */}
         <div className="space-y-5">
-          <StepperMobile current={step} />
+          <StepperMobile steps={STEPS} current={step} />
 
           <div className="overflow-hidden rounded-3xl border border-border/70 bg-surface shadow-card transition-shadow hover:shadow-card-hover">
             <div className="h-1.5 w-full bg-gradient-to-r from-primary-500 via-primary-400 to-primary-600" />

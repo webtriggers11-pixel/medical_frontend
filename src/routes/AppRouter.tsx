@@ -14,6 +14,7 @@ import { AddStorePage } from '../pages/admin/AddStorePage';
 import { LabsPage } from '../pages/admin/LabsPage';
 import { PanelsPage } from '../pages/admin/PanelsPage';
 import { CandidatesPage } from '../pages/candidates/CandidatesPage';
+import { AddCandidatePage } from '../pages/candidates/AddCandidatePage';
 import { ROLE_GROUPS } from '../config/roles';
 import { UnauthorizedPage } from '../pages/UnauthorizedPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
@@ -46,6 +47,7 @@ export const AppRouter = () => (
           {/* User-only routes */}
           <Route element={<RoleRoute allowedRoles={ROLE_GROUPS.userOnly} />}>
             <Route path="/candidates" element={<CandidatesPage />} />
+            <Route path="/candidates/new" element={<AddCandidatePage />} />
             <Route path="/stores" element={<StoresPage />} />
             <Route path="/stores/new" element={<AddStorePage />} />
           </Route>
