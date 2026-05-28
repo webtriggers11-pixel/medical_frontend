@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import { usePanels, useCreatePanel, useDeletePanel, useSetPanelPricing } from '../../features/panel/hooks/usePanels';
 import { useLabs, useBundledTests } from '../../features/lab/hooks/useLabs';
 import { useUsers } from '../../features/users/hooks/useUsers';
@@ -29,7 +29,17 @@ const TagIcon = (
   </svg>
 );
 
-// ── Create panel modal ──────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────
+
+const fmt = (n: number) => `₹${Number(n).toLocaleString('en-IN')}`;
+
+function calcMargin(costToClient: number, costToVendor: number) {
+  const margin = costToClient - costToVendor;
+  const pct = costToClient > 0 ? ((margin / costToClient) * 100).toFixed(1) : '0.0';
+  return { margin, pct };
+}
+
+// ── Create panel modal ───────────────────────────────────────────
 
 interface PanelFormValues {
   labId: string;
@@ -167,6 +177,24 @@ interface PricingFormValues {
   discountedPrice: number;
 }
 
+function MarginPill({ costToClient, costToVendor }: { costToClient: number; costToVendor: number }) {
+  if (!costToClient || costToClient <= 0) return null;
+  const { margin, pct } = calcMargin(Number(costToClient), Number(costToVendor));
+  const isNegative = margin < 0;
+  return (
+    <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium ${
+      isNegative
+        ? 'bg-red-50 text-red-700 border border-red-200'
+        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+    }`}>
+      <span>Admin margin:</span>
+      <span className="font-bold">{fmt(margin)}</span>
+      <span className="text-xs opacity-75">({pct}%)</span>
+      {isNegative && <span className="text-xs font-semibold">⚠ Below vendor cost</span>}
+    </div>
+  );
+}
+
 function SetPricingModal({ panel, open, onClose }: { panel: Panel; open: boolean; onClose: () => void }) {
   const { data: clients } = useUsers();
   const setPricing = useSetPanelPricing(panel.id);
@@ -175,6 +203,8 @@ function SetPricingModal({ panel, open, onClose }: { panel: Panel; open: boolean
   const { register, control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<PricingFormValues>({
     defaultValues: { discountAfterN: 0 },
   });
+
+  const watchedCostToClient = useWatch({ control, name: 'costToClient' });
 
   const handleClose = () => { reset(); setApiError(''); onClose(); };
 
@@ -194,8 +224,6 @@ function SetPricingModal({ panel, open, onClose }: { panel: Panel; open: boolean
   };
 
   const clientOptions = clients?.map((c) => ({ value: c.id, label: c.name ?? c.email })) ?? [];
-
-  // Existing pricing rows for this panel
   const existing = panel.clientPricing ?? [];
 
   return (
@@ -211,48 +239,88 @@ function SetPricingModal({ panel, open, onClose }: { panel: Panel; open: boolean
         </div>
       }
     >
+      {/* Panel price overview */}
+      <div className="mb-5 rounded-xl border border-border bg-slate-50 overflow-hidden">
+        <div className="px-4 py-2.5 border-b border-border bg-slate-100/60">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Panel price reference</p>
+        </div>
+        <div className="grid grid-cols-3 divide-x divide-border">
+          <div className="px-4 py-3 text-center">
+            <p className="text-xs text-slate-500 mb-0.5">MRP</p>
+            <p className="text-base font-bold text-slate-800">{fmt(panel.mrp)}</p>
+            <p className="text-xs text-slate-400 mt-0.5">Market reference</p>
+          </div>
+          <div className="px-4 py-3 text-center">
+            <p className="text-xs text-slate-500 mb-0.5">Cost to vendor</p>
+            <p className="text-base font-bold text-orange-600">{fmt(panel.costToVendor)}</p>
+            <p className="text-xs text-slate-400 mt-0.5">Paid to lab</p>
+          </div>
+          <div className="px-4 py-3 text-center">
+            <p className="text-xs text-slate-500 mb-0.5">Min. margin</p>
+            <p className="text-base font-bold text-slate-400">Set per client →</p>
+            <p className="text-xs text-slate-400 mt-0.5">Cost to client − vendor</p>
+          </div>
+        </div>
+      </div>
+
       {/* Existing pricing table */}
       {existing.length > 0 && (
         <div className="mb-6">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Current pricing</p>
-          <div className="rounded-lg border border-border overflow-hidden">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Current client pricing</p>
+          <div className="rounded-xl border border-border overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-border">
                   <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500">Client</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500">Cost to client</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500">Discount after N</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500">Discounted price</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-blue-600">Cost to client</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-orange-600">Vendor cost</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-emerald-600">Admin margin</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500">Discount after N</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {existing.map((p) => (
-                  <tr key={p.id}>
-                    <td className="px-4 py-2.5 font-medium text-slate-800">{p.client?.name ?? p.client?.email ?? p.clientId}</td>
-                    <td className="px-4 py-2.5 text-slate-700">₹{Number(p.costToClient).toLocaleString('en-IN')}</td>
-                    <td className="px-4 py-2.5 text-slate-500">{p.discountAfterN > 0 ? `${p.discountAfterN} bookings` : '—'}</td>
-                    <td className="px-4 py-2.5 text-slate-500">
-                      {p.discountAfterN > 0 ? `₹${Number(p.discountedPrice).toLocaleString('en-IN')}` : '—'}
-                    </td>
-                  </tr>
-                ))}
+                {existing.map((p) => {
+                  const { margin, pct } = calcMargin(Number(p.costToClient), Number(panel.costToVendor));
+                  const isNeg = margin < 0;
+                  return (
+                    <tr key={p.id} className="hover:bg-slate-50/60">
+                      <td className="px-4 py-3 font-medium text-slate-800">
+                        {p.client?.name ?? p.client?.email ?? p.clientId}
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold text-blue-700">
+                        {fmt(Number(p.costToClient))}
+                      </td>
+                      <td className="px-4 py-3 text-right text-orange-600">
+                        {fmt(Number(panel.costToVendor))}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className={`font-semibold ${isNeg ? 'text-red-600' : 'text-emerald-600'}`}>
+                          {fmt(margin)}
+                        </span>
+                        <span className={`ml-1 text-xs ${isNeg ? 'text-red-400' : 'text-emerald-400'}`}>
+                          ({pct}%)
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right text-slate-500 text-xs">
+                        {p.discountAfterN > 0
+                          ? `After ${p.discountAfterN} → ${fmt(Number(p.discountedPrice))}`
+                          : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      {/* Add / update pricing form */}
+      {/* Add/update pricing form */}
       <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
         {existing.length > 0 ? 'Add or update a client' : 'Set client pricing'}
       </p>
       <form id="pricing-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {apiError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>}
-
-        <div className="p-3 rounded-lg bg-slate-50 text-sm text-slate-600 flex gap-4">
-          <span>MRP: <strong className="text-slate-900">₹{Number(panel.mrp).toLocaleString('en-IN')}</strong></span>
-          <span>Vendor cost: <strong className="text-slate-900">₹{Number(panel.costToVendor).toLocaleString('en-IN')}</strong></span>
-        </div>
 
         <Controller
           name="clientId"
@@ -271,14 +339,24 @@ function SetPricingModal({ panel, open, onClose }: { panel: Panel; open: boolean
             />
           )}
         />
-        <Input
-          label="Cost to client (₹)"
-          type="number"
-          required
-          placeholder="What the client pays per candidate"
-          {...register('costToClient', { required: 'Required', min: { value: 0, message: 'Must be ≥ 0' } })}
-          error={errors.costToClient?.message}
-        />
+
+        <div>
+          <Input
+            label="Cost to client (₹)"
+            type="number"
+            required
+            placeholder="What the client is invoiced per candidate"
+            {...register('costToClient', { required: 'Required', min: { value: 0, message: 'Must be ≥ 0' } })}
+            error={errors.costToClient?.message}
+          />
+          {/* Live margin preview */}
+          {watchedCostToClient > 0 && (
+            <div className="mt-2">
+              <MarginPill costToClient={Number(watchedCostToClient)} costToVendor={Number(panel.costToVendor)} />
+            </div>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
             label="Loyalty discount after N bookings"
@@ -297,6 +375,39 @@ function SetPricingModal({ panel, open, onClose }: { panel: Panel; open: boolean
         </div>
       </form>
     </Modal>
+  );
+}
+
+// ── Pricing summary cell ──────────────────────────────────────────
+
+function PricingSummaryCell({ panel, onClick }: { panel: Panel; onClick: () => void }) {
+  const pricing = panel.clientPricing ?? [];
+
+  if (pricing.length === 0) {
+    return (
+      <button
+        onClick={onClick}
+        className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-primary-600 transition-colors border border-dashed border-slate-300 hover:border-primary-400 rounded-lg px-2.5 py-1"
+      >
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        Set pricing
+      </button>
+    );
+  }
+
+  const pricingCount = pricing.length;
+
+  return (
+    <button onClick={onClick} className="text-left">
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-semibold text-blue-700">
+          {pricingCount} {pricingCount === 1 ? 'client' : 'clients'}
+        </span>
+        <span className="text-xs text-slate-400">pricing set</span>
+      </div>
+    </button>
   );
 }
 
@@ -325,11 +436,26 @@ export function PanelsPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Panels</h1>
           <p className="text-slate-500 mt-1">
-            Health checkup panels with 3-tier pricing
-            {panels && <span className="text-slate-400"> &middot; {panels.length} total</span>}
+            Health checkup panels · 3-tier pricing (MRP → Client → Vendor)
+            {panels && <span className="text-slate-400"> · {panels.length} total</span>}
           </p>
         </div>
         <Button icon={PlusIcon} onClick={() => setCreateOpen(true)}>Create panel</Button>
+      </div>
+
+      {/* Pricing legend */}
+      <div className="flex flex-wrap gap-3">
+        {[
+          { color: 'bg-slate-200 text-slate-700', label: 'MRP', desc: 'Market reference' },
+          { color: 'bg-blue-100 text-blue-700', label: 'Cost to client', desc: 'Invoiced to company' },
+          { color: 'bg-orange-100 text-orange-700', label: 'Cost to vendor', desc: 'Paid to lab' },
+          { color: 'bg-emerald-100 text-emerald-700', label: 'Admin margin', desc: 'Client − Vendor' },
+        ].map((item) => (
+          <span key={item.label} className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${item.color}`}>
+            <span className="font-semibold">{item.label}</span>
+            <span className="opacity-70">— {item.desc}</span>
+          </span>
+        ))}
       </div>
 
       <SearchInput
@@ -351,78 +477,60 @@ export function PanelsPage() {
       {filtered && filtered.length > 0 && (
         <Card padding="none">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm whitespace-nowrap">
+            <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border">
+                <tr className="border-b border-border bg-slate-50/60">
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Panel</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Lab</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Tests</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">MRP</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Vendor cost</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Client pricing</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Lab / Tests</th>
+                  <th className="text-right px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">MRP</th>
+                  <th className="text-right px-5 py-3.5 text-xs font-semibold text-orange-600 uppercase tracking-wider">Vendor cost</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-blue-600 uppercase tracking-wider">Client pricing</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                   <th className="px-5 py-3.5" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filtered.map((p) => {
-                  const pricingCount = p.clientPricing?.length ?? 0;
-                  return (
-                    <tr key={p.id} className="group hover:bg-slate-50/70 transition-colors">
-                      <td className="px-5 py-3.5">
-                        <p className="font-medium text-slate-900">{p.name}</p>
-                        {p.timing && <p className="text-xs text-slate-500">{p.timing}</p>}
-                      </td>
-                      <td className="px-5 py-3.5 text-slate-600">{p.lab?.name ?? '—'}</td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex flex-wrap gap-1 max-w-[180px]">
-                          {(p.bundledTest?.testsIncluded ?? []).slice(0, 2).map((t) => (
-                            <Badge key={t} size="sm" variant="default">{t}</Badge>
-                          ))}
-                          {(p.bundledTest?.testsIncluded?.length ?? 0) > 2 && (
-                            <Badge size="sm" variant="default">+{(p.bundledTest?.testsIncluded?.length ?? 0) - 2}</Badge>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5 text-slate-800 font-medium">
-                        ₹{Number(p.mrp).toLocaleString('en-IN')}
-                      </td>
-                      <td className="px-5 py-3.5 text-slate-600">
-                        ₹{Number(p.costToVendor).toLocaleString('en-IN')}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        {pricingCount > 0 ? (
-                          <button
-                            onClick={() => setPricingPanel(p)}
-                            className="flex items-center gap-1.5 text-primary-600 hover:text-primary-700 text-sm font-medium transition-colors"
-                          >
-                            <span>{pricingCount} {pricingCount === 1 ? 'client' : 'clients'}</span>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => setPricingPanel(p)}
-                            className="text-sm text-slate-400 hover:text-primary-600 transition-colors"
-                          >
-                            Not set
-                          </button>
+                {filtered.map((p) => (
+                  <tr key={p.id} className="group hover:bg-slate-50/50 transition-colors">
+                    <td className="px-5 py-4">
+                      <p className="font-semibold text-slate-900">{p.name}</p>
+                      {p.timing && <p className="text-xs text-slate-400 mt-0.5">{p.timing}</p>}
+                    </td>
+                    <td className="px-5 py-4">
+                      <p className="text-slate-700 text-sm">{p.lab?.name ?? '—'}</p>
+                      <div className="flex flex-wrap gap-1 mt-1 max-w-[200px]">
+                        {(p.bundledTest?.testsIncluded ?? []).slice(0, 3).map((t) => (
+                          <Badge key={t} size="sm" variant="default">{t}</Badge>
+                        ))}
+                        {(p.bundledTest?.testsIncluded?.length ?? 0) > 3 && (
+                          <Badge size="sm" variant="default">+{(p.bundledTest?.testsIncluded?.length ?? 0) - 3}</Badge>
                         )}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <Badge variant={p.status === 'ACTIVE' ? 'success' : 'default'} size="sm">
-                          {p.status.toLowerCase()}
-                        </Badge>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button variant="ghost" size="sm" icon={TagIcon} onClick={() => setPricingPanel(p)}>
-                            Pricing
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(p)}>Delete</Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                      </div>
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      <span className="font-medium text-slate-700">{fmt(Number(p.mrp))}</span>
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      <span className="font-semibold text-orange-600">{fmt(Number(p.costToVendor))}</span>
+                    </td>
+                    <td className="px-5 py-4">
+                      <PricingSummaryCell panel={p} onClick={() => setPricingPanel(p)} />
+                    </td>
+                    <td className="px-5 py-4">
+                      <Badge variant={p.status === 'ACTIVE' ? 'success' : 'default'} size="sm">
+                        {p.status.toLowerCase()}
+                      </Badge>
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="sm" icon={TagIcon} onClick={() => setPricingPanel(p)}>
+                          Pricing
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(p)}>Delete</Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

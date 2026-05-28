@@ -1,6 +1,6 @@
 import api from '../api/axios.instance';
 import type { ApiResponse } from '../types/auth.types';
-import type { Lab, CreateLabInput, UpdateLabInput, BundledTest, CreateBundledTestInput } from '../types/lab.types';
+import type { Lab, CreateLabInput, UpdateLabInput, BundledTest, CreateBundledTestInput, UpdateBundledTestInput } from '../types/lab.types';
 
 export const labService = {
   getAll: async (): Promise<Lab[]> => {
@@ -35,6 +35,11 @@ export const labService = {
 
   createBundledTest: async (input: CreateBundledTestInput): Promise<BundledTest> => {
     const res = await api.post<ApiResponse<BundledTest>>('/lab-bundled-tests', input);
+    return res.data.data;
+  },
+
+  updateBundledTest: async (id: string, input: UpdateBundledTestInput): Promise<BundledTest> => {
+    const res = await api.patch<ApiResponse<BundledTest>>(`/lab-bundled-tests/${id}`, input);
     return res.data.data;
   },
 

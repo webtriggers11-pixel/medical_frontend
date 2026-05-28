@@ -46,3 +46,10 @@ export interface CreateBundledTestInput {
   defaultTiming?: string;
   suggestedMrp: number;
 }
+
+export interface UpdateBundledTestInput {
+  name?: string;
+  testsIncluded?: string[];
+  defaultTiming?: string;
+  suggestedMrp?: number;
+}
