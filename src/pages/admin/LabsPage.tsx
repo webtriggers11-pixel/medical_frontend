@@ -1,4 +1,5 @@
-import { useState, useRef, KeyboardEvent } from 'react';
+import { useState, useRef } from 'react';
+import type { KeyboardEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import {
   useLabs, useCreateLab, useUpdateLab, useDeleteLab,
