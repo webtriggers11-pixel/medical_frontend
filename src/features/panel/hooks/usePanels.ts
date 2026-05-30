@@ -45,6 +45,17 @@ export const useSetPanelPricing = (panelId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: SetClientPricingInput) => panelService.setPricing(panelId, input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.panels.pricing(panelId) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.panels.all });
+      qc.invalidateQueries({ queryKey: queryKeys.panels.pricing(panelId) });
+    },
+  });
+};
+
+export const useRemovePanelPricing = (panelId: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (clientId: string) => panelService.removePricing(panelId, clientId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.panels.all }),
   });
 };

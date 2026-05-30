@@ -111,6 +111,8 @@ interface LabFormValues {
   contactName: string;
   contactMobile: string;
   email: string;
+  address: string;
+  pincode: string;
 }
 
 function LabModal({ open, onClose, editing }: { open: boolean; onClose: () => void; editing: Lab | null }) {
@@ -120,7 +122,14 @@ function LabModal({ open, onClose, editing }: { open: boolean; onClose: () => vo
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<LabFormValues>({
     defaultValues: editing
-      ? { name: editing.name, contactName: editing.contactName, contactMobile: editing.contactMobile, email: editing.email }
+      ? {
+          name: editing.name,
+          contactName: editing.contactName,
+          contactMobile: editing.contactMobile,
+          email: editing.email,
+          address: editing.address ?? '',
+          pincode: editing.pincode ?? '',
+        }
       : {},
   });
 
@@ -129,10 +138,18 @@ function LabModal({ open, onClose, editing }: { open: boolean; onClose: () => vo
   const onSubmit = async (values: LabFormValues) => {
     setApiError('');
     try {
+      const input: CreateLabInput = {
+        name: values.name,
+        contactName: values.contactName,
+        contactMobile: values.contactMobile,
+        email: values.email,
+        address: values.address || undefined,
+        pincode: values.pincode || undefined,
+      };
       if (editing) {
-        await updateLab.mutateAsync({ id: editing.id, input: values });
+        await updateLab.mutateAsync({ id: editing.id, input });
       } else {
-        await createLab.mutateAsync(values as CreateLabInput);
+        await createLab.mutateAsync(input);
       }
       handleClose();
     } catch (err) {
@@ -156,37 +173,50 @@ function LabModal({ open, onClose, editing }: { open: boolean; onClose: () => vo
     >
       <form id="lab-form" onSubmit={handleSubmit(onSubmit)}>
         <fieldset disabled={isSubmitting} className="space-y-4">
-        {apiError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>}
-        <Input
-          label="Lab name"
-          required
-          {...register('name', { required: 'Required' })}
-          error={errors.name?.message}
-        />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {apiError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>}
           <Input
-            label="Contact name"
+            label="Lab name"
             required
-            {...register('contactName', { required: 'Required' })}
-            error={errors.contactName?.message}
+            {...register('name', { required: 'Required' })}
+            error={errors.name?.message}
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Contact name"
+              required
+              {...register('contactName', { required: 'Required' })}
+              error={errors.contactName?.message}
+            />
+            <Input
+              label="Contact mobile"
+              required
+              {...register('contactMobile', {
+                required: 'Required',
+                pattern: { value: /^\d{10}$/, message: 'Must be 10 digits' },
+              })}
+              error={errors.contactMobile?.message}
+            />
+          </div>
+          <Input
+            label="Email"
+            type="email"
+            required
+            {...register('email', { required: 'Required' })}
+            error={errors.email?.message}
           />
           <Input
-            label="Contact mobile"
-            required
-            {...register('contactMobile', {
-              required: 'Required',
-              pattern: { value: /^\d{10}$/, message: 'Must be 10 digits' },
+            label="Address"
+            placeholder="Street address, area, landmark"
+            {...register('address')}
+          />
+          <Input
+            label="Pincode"
+            placeholder="6-digit pincode"
+            {...register('pincode', {
+              pattern: { value: /^\d{6}$/, message: 'Must be 6 digits' },
             })}
-            error={errors.contactMobile?.message}
+            error={errors.pincode?.message}
           />
-        </div>
-        <Input
-          label="Email"
-          type="email"
-          required
-          {...register('email', { required: 'Required' })}
-          error={errors.email?.message}
-        />
         </fieldset>
       </form>
     </Modal>
@@ -197,8 +227,6 @@ function LabModal({ open, onClose, editing }: { open: boolean; onClose: () => vo
 
 interface BundledTestFormValues {
   name: string;
-  defaultTiming: string;
-  suggestedMrp: number;
 }
 
 function BundledTestForm({
@@ -219,9 +247,7 @@ function BundledTestForm({
   const [apiError, setApiError] = useState('');
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<BundledTestFormValues>({
-    defaultValues: editing
-      ? { name: editing.name, defaultTiming: editing.defaultTiming ?? '', suggestedMrp: editing.suggestedMrp }
-      : {},
+    defaultValues: editing ? { name: editing.name } : {},
   });
 
   const onSubmit = async (values: BundledTestFormValues) => {
@@ -230,21 +256,10 @@ function BundledTestForm({
     setApiError('');
     try {
       if (editing) {
-        const input: UpdateBundledTestInput = {
-          name: values.name,
-          testsIncluded: tags,
-          defaultTiming: values.defaultTiming || undefined,
-          suggestedMrp: Number(values.suggestedMrp),
-        };
+        const input: UpdateBundledTestInput = { name: values.name, testsIncluded: tags };
         await updateTest.mutateAsync({ id: editing.id, input });
       } else {
-        const input: CreateBundledTestInput = {
-          labId,
-          name: values.name,
-          testsIncluded: tags,
-          defaultTiming: values.defaultTiming || undefined,
-          suggestedMrp: Number(values.suggestedMrp),
-        };
+        const input: CreateBundledTestInput = { labId, name: values.name, testsIncluded: tags, suggestedMrp: 0 };
         await createTest.mutateAsync(input);
       }
       onSuccess();
@@ -272,20 +287,6 @@ function BundledTestForm({
           onChange={setTags}
           error={tagsError}
         />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input
-            label="Suggested MRP (₹)"
-            type="number"
-            required
-            {...register('suggestedMrp', { required: 'Required', min: { value: 0, message: 'Must be ≥ 0' } })}
-            error={errors.suggestedMrp?.message}
-          />
-          <Input
-            label="Default timing"
-            placeholder='e.g. "Same day"'
-            {...register('defaultTiming')}
-          />
-        </div>
         </fieldset>
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="outline" size="sm" type="button" onClick={onCancel}>Cancel</Button>
@@ -381,9 +382,6 @@ function BundledTestsModal({ lab, open, onClose }: { lab: Lab; open: boolean; on
                       {t.defaultTiming && (
                         <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{t.defaultTiming}</span>
                       )}
-                      <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                        ₹{Number(t.suggestedMrp).toLocaleString('en-IN')} MRP
-                      </span>
                     </div>
                     <div className="flex flex-wrap gap-1 mt-1.5">
                       {t.testsIncluded.map((test) => (

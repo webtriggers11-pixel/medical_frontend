@@ -10,6 +10,13 @@ export const useUsers = () =>
     queryFn: usersService.getAll,
   });
 
+export const useClientById = (id: string) =>
+  useQuery({
+    queryKey: queryKeys.users.byId(id),
+    queryFn: () => usersService.getById(id),
+    enabled: !!id,
+  });
+
 export const useCreateClient = () => {
   const qc = useQueryClient();
   return useMutation({

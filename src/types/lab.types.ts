@@ -6,6 +6,8 @@ export interface Lab {
   contactName: string;
   contactMobile: string;
   email: string;
+  address: string | null;
+  pincode: string | null;
   serviceCities: string[];
   status: LabStatus;
   createdAt: string;
@@ -16,6 +18,8 @@ export interface CreateLabInput {
   contactName: string;
   contactMobile: string;
   email: string;
+  address?: string;
+  pincode?: string;
   serviceCities?: string[];
 }
 
@@ -24,6 +28,8 @@ export interface UpdateLabInput {
   contactName?: string;
   contactMobile?: string;
   email?: string;
+  address?: string;
+  pincode?: string;
   serviceCities?: string[];
   status?: LabStatus;
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 import {
   useUsers,
   useCreateClient,
@@ -25,8 +26,7 @@ const PlusIcon = (
   </svg>
 );
 
-// ── Add client modal ──────────────────────────────────────────────
-// A client is a USER login — creating one lets them sign in immediately.
+// ── Add client modal ─────────────────────────────────────────────
 
 function AddClientModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const createClient = useCreateClient();
@@ -65,13 +65,9 @@ function AddClientModal({ open, onClose }: { open: boolean; onClose: () => void 
         </div>
       }
     >
-      <form id="client-form" onSubmit={handleSubmit(onSubmit)}>
-        <fieldset disabled={isSubmitting} className="space-y-4">
+      <form id="client-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {apiError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>}
-        <Input
-          label="Client name"
-          {...register('name')}
-        />
+        <Input label="Client name" {...register('name')} />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
             label="Email"
@@ -99,18 +95,20 @@ function AddClientModal({ open, onClose }: { open: boolean; onClose: () => void 
           })}
           error={errors.password?.message}
         />
-        </fieldset>
       </form>
     </Modal>
   );
 }
 
+// ── Main page ─────────────────────────────────────────────────────
+
 export function ClientsPage() {
+  const navigate = useNavigate();
   const { data: clients, isLoading, error } = useUsers();
   const setActive = useSetClientActive();
   const deleteClient = useDeleteClient();
   const [search, setSearch] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
+  const [addModalOpen, setAddModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<UserRecord | null>(null);
 
   const filtered = clients?.filter((c) => {
@@ -124,19 +122,17 @@ export function ClientsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Page header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Clients</h1>
           <p className="text-slate-500 mt-1">
             Manage your clients
-            {clients && <span className="text-slate-400"> &middot; {clients.length} total</span>}
+            {clients && <span className="text-slate-400"> · {clients.length} total</span>}
           </p>
         </div>
-        <Button icon={PlusIcon} onClick={() => setModalOpen(true)}>Add client</Button>
+        <Button icon={PlusIcon} onClick={() => setAddModalOpen(true)}>Add client</Button>
       </div>
 
-      {/* Filters bar */}
       <div className="flex items-center gap-3">
         <SearchInput
           value={search}
@@ -147,17 +143,9 @@ export function ClientsPage() {
         />
       </div>
 
-      {/* Loading state */}
       {isLoading && <SkeletonTable rows={5} />}
+      {error && <Card><p className="text-sm text-red-600 font-medium">Failed to load clients. Please try again.</p></Card>}
 
-      {/* Error state */}
-      {error && (
-        <Card>
-          <p className="text-sm text-red-600 font-medium">Failed to load clients. Please try again.</p>
-        </Card>
-      )}
-
-      {/* Table */}
       {filtered && filtered.length > 0 && (
         <Card padding="none">
           <div className="overflow-x-auto">
@@ -174,12 +162,18 @@ export function ClientsPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {filtered.map((client) => (
-                  <tr key={client.id} className="group hover:bg-slate-50/70 transition-colors">
+                  <tr
+                    key={client.id}
+                    className="group hover:bg-slate-50/70 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/admin/clients/${client.id}`)}
+                  >
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
                         <Avatar name={client.name ?? client.email} size="sm" />
                         <div>
-                          <p className="font-medium text-slate-900">{client.name ?? client.email.split('@')[0]}</p>
+                          <p className="font-medium text-slate-900 group-hover:text-primary-600 transition-colors">
+                            {client.name ?? client.email.split('@')[0]}
+                          </p>
                           <p className="text-xs text-slate-500">{client.email}</p>
                         </div>
                       </div>
@@ -191,24 +185,15 @@ export function ClientsPage() {
                       </Badge>
                     </td>
                     <td className="px-5 py-3.5">
-                      {client.isEmailVerified ? (
-                        <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      ) : (
-                        <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      )}
+                      {client.isEmailVerified
+                        ? <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        : <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      }
                     </td>
                     <td className="px-5 py-3.5 text-slate-500">
-                      {new Date(client.createdAt).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
+                      {new Date(client.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </td>
-                    <td className="px-5 py-3.5">
+                    <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button
                           variant="ghost"
@@ -231,47 +216,29 @@ export function ClientsPage() {
         </Card>
       )}
 
-      {/* Empty search results */}
       {filtered && filtered.length === 0 && search && (
         <Card>
           <EmptyState
-            icon={
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-              </svg>
-            }
+            icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>}
             title="No clients found"
-            description={`No results for "${search}". Try a different search term.`}
-            action={
-              <Button variant="secondary" size="sm" onClick={() => setSearch('')}>
-                Clear search
-              </Button>
-            }
+            description={`No results for "${search}".`}
+            action={<Button variant="secondary" size="sm" onClick={() => setSearch('')}>Clear search</Button>}
           />
         </Card>
       )}
 
-      {/* Empty state - no clients at all */}
       {filtered && filtered.length === 0 && !search && (
         <Card>
           <EmptyState
-            icon={
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-              </svg>
-            }
+            icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>}
             title="No clients yet"
             description="Get started by creating your first client."
-            action={
-              <Button size="sm" icon={PlusIcon} onClick={() => setModalOpen(true)}>
-                Add client
-              </Button>
-            }
+            action={<Button size="sm" icon={PlusIcon} onClick={() => setAddModalOpen(true)}>Add client</Button>}
           />
         </Card>
       )}
 
-      <AddClientModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <AddClientModal open={addModalOpen} onClose={() => setAddModalOpen(false)} />
 
       <ConfirmDialog
         open={!!deleteTarget}
@@ -279,12 +246,7 @@ export function ClientsPage() {
         loading={deleteClient.isPending}
         title="Delete client"
         confirmLabel="Delete client"
-        message={
-          <>
-            Delete <strong>{deleteTarget?.name ?? deleteTarget?.email}</strong>? They will be
-            signed out immediately and can no longer log in. This cannot be undone.
-          </>
-        }
+        message={<>Delete <strong>{deleteTarget?.name ?? deleteTarget?.email}</strong>? This cannot be undone.</>}
         onConfirm={() => {
           if (!deleteTarget) return;
           deleteClient.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) });
