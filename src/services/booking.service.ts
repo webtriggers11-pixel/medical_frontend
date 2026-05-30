@@ -1,8 +1,15 @@
 import api from '../api/axios.instance';
 import type { ApiResponse } from '../types/auth.types';
-import type { Booking, CreateBookingInput, UpdateBookingStatusInput } from '../types/booking.types';
+import type { Booking, BookingRequest, CreateBookingInput, UpdateBookingStatusInput } from '../types/booking.types';
 
 export const bookingService = {
+  // Admin — candidates awaiting booking
+  getRequests: async (): Promise<BookingRequest[]> => {
+    const res = await api.get<ApiResponse<BookingRequest[]>>('/bookings/requests');
+    return res.data.data;
+  },
+
+  // Admin — book a candidate by assigning a panel
   create: async (input: CreateBookingInput): Promise<Booking> => {
     const res = await api.post<ApiResponse<Booking>>('/bookings', input);
     return res.data.data;
@@ -10,11 +17,6 @@ export const bookingService = {
 
   getAll: async (params?: { status?: string; clientId?: string }): Promise<Booking[]> => {
     const res = await api.get<ApiResponse<Booking[]>>('/bookings', { params });
-    return res.data.data;
-  },
-
-  getPending: async (): Promise<Booking[]> => {
-    const res = await api.get<ApiResponse<Booking[]>>('/bookings/pending');
     return res.data.data;
   },
 

@@ -1,27 +1,138 @@
 import { useState } from 'react';
-import { usePendingBookings, useUpdateBookingStatus } from '../../features/booking/hooks/useBookings';
+import { useBookingRequests, useCreateBooking } from '../../features/booking/hooks/useBookings';
+import { usePanels } from '../../features/panel/hooks/usePanels';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import { Modal } from '../../components/ui/Modal';
+import { Combobox } from '../../components/ui/Combobox';
+import { Avatar } from '../../components/ui/Avatar';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { getApiErrorMessage } from '../../lib/apiError';
 import { format } from 'date-fns';
-import type { Booking } from '../../types/booking.types';
+import type { BookingRequest } from '../../types/booking.types';
+
+const fmt = (n: number) => `₹${Number(n).toLocaleString('en-IN')}`;
+
+// ── Book Now modal — admin assigns panel ──────────────────────────
+
+function BookNowModal({ request, open, onClose }: { request: BookingRequest; open: boolean; onClose: () => void }) {
+  const { data: allPanels } = usePanels();
+  const createBooking = useCreateBooking();
+  const [panelId, setPanelId] = useState('');
+  const [apiError, setApiError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  // Only panels assigned to THIS client
+  const assignedPanels = allPanels?.filter((p) =>
+    p.clientPricing?.some((cp) => cp.clientId === request.clientId)
+  ) ?? [];
+
+  const panelOptions = assignedPanels.map((p) => ({ value: p.id, label: p.name }));
+  const selectedPanel = assignedPanels.find((p) => p.id === panelId);
+  const clientPricing = selectedPanel?.clientPricing?.find((cp) => cp.clientId === request.clientId);
+
+  const handleClose = () => { setPanelId(''); setApiError(''); onClose(); };
+
+  const handleSubmit = async () => {
+    if (!panelId) { setApiError('Please select a panel'); return; }
+    setApiError('');
+    setSubmitting(true);
+    try {
+      await createBooking.mutateAsync({ candidateId: request.id, panelId });
+      handleClose();
+    } catch (err) {
+      setApiError(getApiErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={handleClose}
+      title="Book appointment"
+      size="md"
+      footer={
+        <div className="flex justify-end gap-3">
+          <Button variant="outline" onClick={handleClose}>Cancel</Button>
+          <Button loading={submitting} onClick={handleSubmit} disabled={!panelId}>Book Now</Button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-border">
+          <Avatar name={request.name} size="sm" />
+          <div className="flex-1">
+            <p className="font-medium text-slate-900">{request.name}</p>
+            <p className="text-xs text-slate-500">
+              {request.client?.name ?? request.client?.email}
+              {request.appointmentDate && ` · ${format(new Date(request.appointmentDate), 'd MMM yyyy')}`}
+            </p>
+          </div>
+        </div>
+
+        {apiError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>}
+
+        <Combobox
+          label="Select panel for this candidate"
+          required
+          options={panelOptions}
+          value={panelId}
+          onChange={setPanelId}
+          placeholder="Choose a panel"
+          searchPlaceholder="Search panels..."
+          emptyText="No panels assigned to this client"
+        />
+
+        {selectedPanel && (
+          <div className="rounded-xl border border-border bg-white p-4 space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-slate-500">Lab</span>
+              <span className="font-medium text-slate-800">{selectedPanel.lab?.name ?? '—'}</span>
+            </div>
+            {selectedPanel.bundledTest?.testsIncluded && (
+              <div className="flex flex-wrap gap-1">
+                {selectedPanel.bundledTest.testsIncluded.map((t) => (
+                  <span key={t} className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">{t}</span>
+                ))}
+              </div>
+            )}
+            <div className="flex justify-between pt-1 border-t border-border">
+              <span className="text-slate-500">Client pays</span>
+              <span className="font-semibold text-blue-700">
+                {clientPricing ? fmt(Number(clientPricing.costToClient)) : fmt(Number(selectedPanel.mrp))}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {panelOptions.length === 0 && (
+          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+            This client has no panels assigned. Assign panels first from the client detail page.
+          </p>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────────────
 
 export function BookingRequestsPage() {
-  const { data: bookings, isLoading, error } = usePendingBookings();
-  const updateStatus = useUpdateBookingStatus();
+  const { data: requests, isLoading, error } = useBookingRequests();
   const [search, setSearch] = useState('');
-  const [bookNowTarget, setBookNowTarget] = useState<Booking | null>(null);
+  const [bookTarget, setBookTarget] = useState<BookingRequest | null>(null);
 
-  const filtered = bookings?.filter((b) => {
+  const filtered = requests?.filter((r) => {
     const q = search.toLowerCase();
     return (
-      (b.candidate?.name ?? '').toLowerCase().includes(q) ||
-      (b.client?.name ?? b.client?.email ?? '').toLowerCase().includes(q) ||
-      (b.panel?.name ?? '').toLowerCase().includes(q)
+      r.name.toLowerCase().includes(q) ||
+      r.employeeCode.toLowerCase().includes(q) ||
+      (r.client?.name ?? r.client?.email ?? '').toLowerCase().includes(q)
     );
   }) ?? [];
 
@@ -31,8 +142,8 @@ export function BookingRequestsPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Booking Requests</h1>
           <p className="text-slate-500 mt-1">
-            Appointment requests from clients waiting for confirmation
-            {bookings && <span className="text-slate-400"> · {bookings.length} pending</span>}
+            Candidates awaiting booking — assign a panel and confirm
+            {requests && <span className="text-slate-400"> · {requests.length} pending</span>}
           </p>
         </div>
         <SearchInput
@@ -61,7 +172,7 @@ export function BookingRequestsPage() {
               </svg>
             }
             title={search ? 'No requests found' : 'No pending booking requests'}
-            description={search ? `No results for "${search}"` : 'When clients request appointments for their candidates, they will appear here.'}
+            description={search ? `No results for "${search}"` : 'When clients add candidates with an appointment date, they appear here for booking.'}
           />
         </Card>
       )}
@@ -74,42 +185,29 @@ export function BookingRequestsPage() {
                 <tr className="border-b border-border bg-slate-50/60">
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Candidate</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Client</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Panel</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Lab</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Preferred date</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Time slot</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Store</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Mobile</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Appointment date</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                   <th className="px-5 py-3.5" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filtered.map((b) => (
-                  <tr key={b.id} className="hover:bg-slate-50/50 transition-colors">
+                {filtered.map((r) => (
+                  <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-5 py-4">
-                      <p className="font-medium text-slate-900">{b.candidate?.name ?? '—'}</p>
-                      <p className="text-xs text-slate-400">{b.candidate?.employeeCode}</p>
+                      <p className="font-medium text-slate-900">{r.name}</p>
+                      <p className="text-xs text-slate-400">{r.employeeCode}</p>
                     </td>
-                    <td className="px-5 py-4 text-slate-600">
-                      {b.client?.name ?? b.client?.email ?? '—'}
-                    </td>
-                    <td className="px-5 py-4 text-slate-700">{b.panel?.name ?? '—'}</td>
-                    <td className="px-5 py-4 text-slate-600">{b.lab?.name ?? '—'}</td>
+                    <td className="px-5 py-4 text-slate-600">{r.client?.name ?? r.client?.email ?? '—'}</td>
+                    <td className="px-5 py-4 text-slate-600">{r.store?.name ?? '—'}</td>
+                    <td className="px-5 py-4 text-slate-600">{r.mobile}</td>
                     <td className="px-5 py-4 text-slate-700 font-medium">
-                      {format(new Date(b.reqDate), 'd MMM yyyy')}
+                      {r.appointmentDate ? format(new Date(r.appointmentDate), 'd MMM yyyy') : '—'}
                     </td>
-                    <td className="px-5 py-4 text-slate-500 text-xs">
-                      {b.timeSlot ?? '—'}
-                    </td>
+                    <td className="px-5 py-4"><Badge variant="warning" size="sm">Requested</Badge></td>
                     <td className="px-5 py-4">
-                      <Badge variant="warning" size="sm">Requested</Badge>
-                    </td>
-                    <td className="px-5 py-4">
-                      <Button
-                        size="sm"
-                        onClick={() => setBookNowTarget(b)}
-                      >
-                        Book Now
-                      </Button>
+                      <Button size="sm" onClick={() => setBookTarget(r)}>Book Now</Button>
                     </td>
                   </tr>
                 ))}
@@ -119,40 +217,9 @@ export function BookingRequestsPage() {
         </Card>
       )}
 
-      <ConfirmDialog
-        open={!!bookNowTarget}
-        onClose={() => setBookNowTarget(null)}
-        loading={updateStatus.isPending}
-        title="Confirm booking"
-        confirmLabel="Book Now"
-        message={
-          bookNowTarget ? (
-            <div className="space-y-2 text-sm">
-              <p>Confirm appointment for <strong>{bookNowTarget.candidate?.name}</strong>?</p>
-              <div className="mt-3 rounded-lg bg-slate-50 border border-border p-3 space-y-1 text-slate-600">
-                <p><span className="font-medium">Panel:</span> {bookNowTarget.panel?.name}</p>
-                <p><span className="font-medium">Lab:</span> {bookNowTarget.lab?.name}</p>
-                <p><span className="font-medium">Date:</span> {format(new Date(bookNowTarget.reqDate), 'd MMM yyyy')}</p>
-                {bookNowTarget.timeSlot && <p><span className="font-medium">Time:</span> {bookNowTarget.timeSlot}</p>}
-              </div>
-            </div>
-          ) : null
-        }
-        onConfirm={() => {
-          if (!bookNowTarget) return;
-          updateStatus.mutate(
-            {
-              id: bookNowTarget.id,
-              input: {
-                status: 'SCHEDULED',
-                scheduledDate: bookNowTarget.reqDate,
-                timeSlot: bookNowTarget.timeSlot ?? undefined,
-              },
-            },
-            { onSuccess: () => setBookNowTarget(null) },
-          );
-        }}
-      />
+      {bookTarget && (
+        <BookNowModal request={bookTarget} open={!!bookTarget} onClose={() => setBookTarget(null)} />
+      )}
     </div>
   );
 }

@@ -9,12 +9,14 @@ export const useBookings = (params?: { status?: string; clientId?: string }) =>
     queryFn: () => bookingService.getAll(params),
   });
 
-export const usePendingBookings = () =>
+// Admin — candidates awaiting booking
+export const useBookingRequests = () =>
   useQuery({
     queryKey: queryKeys.bookings.pending,
-    queryFn: bookingService.getPending,
+    queryFn: bookingService.getRequests,
   });
 
+// Admin — book a candidate with a panel
 export const useCreateBooking = () => {
   const qc = useQueryClient();
   return useMutation({

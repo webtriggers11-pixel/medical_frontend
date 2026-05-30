@@ -1,24 +1,20 @@
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCandidates } from '../../features/candidates/hooks/useCandidates';
-import { useCreateBooking } from '../../features/booking/hooks/useBookings';
-import { usePanels } from '../../features/panel/hooks/usePanels';
-import { useAuthStore } from '../../store/auth.store';
+import { useBookings } from '../../features/booking/hooks/useBookings';
 import { BulkUploadModal } from '../../features/candidates/components/BulkUploadModal';
 import { candidatesService } from '../../services/candidates.service';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
-import { Modal } from '../../components/ui/Modal';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { Combobox } from '../../components/ui/Combobox';
-import { getApiErrorMessage } from '../../lib/apiError';
-import { format, addDays } from 'date-fns';
-import type { CandidateType, Gender, Candidate } from '../../types/candidate.types';
-import { TIME_SLOTS } from '../../types/booking.types';
+import { format } from 'date-fns';
+import type { CandidateType } from '../../types/candidate.types';
+import { STATUS_LABEL, STATUS_VARIANT } from '../../types/booking.types';
+import type { Booking } from '../../types/booking.types';
 
 const typeVariant: Record<CandidateType, 'primary' | 'success' | 'warning'> = {
   NEW_JOINER: 'success',
@@ -30,12 +26,6 @@ const typeLabel: Record<CandidateType, string> = {
   NEW_JOINER: 'New Joiner',
   EXISTING: 'Existing',
   ANNUAL: 'Annual',
-};
-
-const genderLabel: Record<Gender, string> = {
-  MALE: 'Male',
-  FEMALE: 'Female',
-  OTHER: 'Other',
 };
 
 const PlusIcon = (
@@ -77,138 +67,22 @@ const STAT_TILES: { key: TypeFilter; label: string; bg: string; color: string; i
   },
 ];
 
-// ── Request Appointment Modal ─────────────────────────────────────
-
-function RequestAppointmentModal({
-  candidate,
-  open,
-  onClose,
-}: {
-  candidate: Candidate;
-  open: boolean;
-  onClose: () => void;
-}) {
-  const currentUser = useAuthStore((s) => s.user);
-  const { data: allPanels } = usePanels();
-  const createBooking = useCreateBooking();
-
-  const [panelId, setPanelId] = useState('');
-  const [reqDate, setReqDate] = useState('');
-  const [timeSlot, setTimeSlot] = useState('');
-  const [apiError, setApiError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  // Only show panels assigned to this client
-  const assignedPanels = allPanels?.filter((p) =>
-    p.clientPricing?.some((cp) => cp.clientId === currentUser?.id)
-  ) ?? [];
-
-  const panelOptions = assignedPanels.map((p) => ({ value: p.id, label: p.name }));
-  const slotOptions = TIME_SLOTS.map((s) => ({ value: s, label: s }));
-
-  const minDate = format(addDays(new Date(), 1), 'yyyy-MM-dd');
-
-  const handleClose = () => {
-    setPanelId(''); setReqDate(''); setTimeSlot(''); setApiError('');
-    onClose();
-  };
-
-  const handleSubmit = async () => {
-    if (!panelId || !reqDate || !timeSlot) {
-      setApiError('Please fill in all fields');
-      return;
-    }
-    setApiError('');
-    setSubmitting(true);
-    try {
-      await createBooking.mutateAsync({
-        candidateId: candidate.id,
-        panelId,
-        reqDate: new Date(reqDate).toISOString(),
-        timeSlot,
-      });
-      handleClose();
-    } catch (err) {
-      setApiError(getApiErrorMessage(err));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <Modal
-      open={open}
-      onClose={handleClose}
-      title="Request appointment"
-      size="md"
-      footer={
-        <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={handleClose}>Cancel</Button>
-          <Button loading={submitting} onClick={handleSubmit}>Submit request</Button>
-        </div>
-      }
-    >
-      <div className="space-y-4">
-        {/* Candidate info */}
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-border">
-          <Avatar name={candidate.name} size="sm" />
-          <div>
-            <p className="font-medium text-slate-900">{candidate.name}</p>
-            <p className="text-xs text-slate-500">{candidate.employeeCode} · {candidate.store?.name}</p>
-          </div>
-        </div>
-
-        {apiError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>}
-
-        <Combobox
-          label="Panel"
-          required
-          options={panelOptions}
-          value={panelId}
-          onChange={setPanelId}
-          placeholder="Select health checkup panel"
-          searchPlaceholder="Search panels..."
-          emptyText="No panels assigned to your account"
-        />
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
-            Preferred date <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="date"
-            min={minDate}
-            value={reqDate}
-            onChange={(e) => setReqDate(e.target.value)}
-            className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-500 transition-colors"
-          />
-          <p className="text-xs text-slate-400 mt-1">Minimum 1 day from today</p>
-        </div>
-
-        <Combobox
-          label="Preferred time slot"
-          required
-          options={slotOptions}
-          value={timeSlot}
-          onChange={setTimeSlot}
-          placeholder="Select a time slot"
-          searchPlaceholder="Search slots..."
-        />
-      </div>
-    </Modal>
-  );
-}
-
-// ── Main page ─────────────────────────────────────────────────────
-
 export function CandidatesPage() {
   const navigate = useNavigate();
   const { data: candidates, isLoading, error } = useCandidates();
+  const { data: bookings } = useBookings();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('ALL');
   const [bulkOpen, setBulkOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [appointmentCandidate, setAppointmentCandidate] = useState<Candidate | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Active booking per candidate
+  const bookingByCandidate = (bookings ?? []).reduce((acc, b) => {
+    if (b.status === 'CANCELLED') return acc;
+    if (!acc[b.candidateId]) acc[b.candidateId] = b;
+    return acc;
+  }, {} as Record<string, Booking>);
 
   const handleDownloadTemplate = async () => {
     setDownloading(true);
@@ -303,48 +177,100 @@ export function CandidatesPage() {
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Candidate</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Emp. Code</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Mobile</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Gender</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Age</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Type</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Store</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Date of Joining</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Appointment date</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                   <th className="px-5 py-3.5" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filtered.map((c) => (
-                  <tr key={c.id} className="group hover:bg-slate-50/70 transition-colors">
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-3">
-                        <Avatar name={c.name} size="sm" />
-                        <div>
-                          <p className="font-medium text-slate-900">{c.name}</p>
-                          <p className="text-xs text-slate-500">{c.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5 text-slate-600">{c.employeeCode}</td>
-                    <td className="px-5 py-3.5 text-slate-600">{c.mobile}</td>
-                    <td className="px-5 py-3.5 text-slate-600">{genderLabel[c.gender]}</td>
-                    <td className="px-5 py-3.5 text-slate-600">{c.age}</td>
-                    <td className="px-5 py-3.5">
-                      <Badge variant={typeVariant[c.candidateType]} size="sm">{typeLabel[c.candidateType]}</Badge>
-                    </td>
-                    <td className="px-5 py-3.5 text-slate-600">{c.store?.name ?? '—'}</td>
-                    <td className="px-5 py-3.5 text-slate-500">{format(new Date(c.doj), 'd MMM, yyyy')}</td>
-                    <td className="px-5 py-3.5">
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setAppointmentCandidate(c)}
-                        >
-                          Request appointment
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {filtered.map((c) => {
+                  const booking = bookingByCandidate[c.id];
+                  const isExpanded = expandedId === c.id;
+                  const isBooked = !!booking;
+                  return (
+                    <Fragment key={c.id}>
+                      <tr className="group hover:bg-slate-50/70 transition-colors">
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <Avatar name={c.name} size="sm" />
+                            <div>
+                              <p className="font-medium text-slate-900">{c.name}</p>
+                              <p className="text-xs text-slate-500">{c.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5 text-slate-600">{c.employeeCode}</td>
+                        <td className="px-5 py-3.5 text-slate-600">{c.mobile}</td>
+                        <td className="px-5 py-3.5">
+                          <Badge variant={typeVariant[c.candidateType]} size="sm">{typeLabel[c.candidateType]}</Badge>
+                        </td>
+                        <td className="px-5 py-3.5 text-slate-600">{c.store?.name ?? '—'}</td>
+                        <td className="px-5 py-3.5 text-slate-600">
+                          {c.appointmentDate ? format(new Date(c.appointmentDate), 'd MMM yyyy') : '—'}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          {isBooked ? (
+                            <Badge variant={STATUS_VARIANT[booking.status]} size="sm">{STATUS_LABEL[booking.status]}</Badge>
+                          ) : c.appointmentDate ? (
+                            <Badge variant="warning" size="sm">Requested</Badge>
+                          ) : (
+                            <span className="text-xs text-slate-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          {isBooked ? (
+                            <Button size="sm" variant="ghost" onClick={() => setExpandedId(isExpanded ? null : c.id)}>
+                              {isExpanded ? 'Hide details' : 'View details'}
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-amber-600 font-medium">Awaiting admin</span>
+                          )}
+                        </td>
+                      </tr>
+                      {isExpanded && booking && (
+                        <tr className="bg-slate-50/60">
+                          <td colSpan={8} className="px-5 py-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                              <div>
+                                <p className="text-xs font-semibold text-slate-400 uppercase mb-1">Panel</p>
+                                <p className="font-medium text-slate-800">{booking.panel?.name ?? '—'}</p>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {(booking.panel?.bundledTest?.testsIncluded ?? []).map((t) => (
+                                    <span key={t} className="text-xs px-1.5 py-0.5 rounded bg-white border border-border text-slate-500">{t}</span>
+                                  ))}
+                                </div>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-slate-400 uppercase mb-1">Lab</p>
+                                <p className="font-medium text-slate-800">{booking.lab?.name ?? '—'}</p>
+                                <p className="text-xs text-slate-500">{booking.lab?.contactMobile}</p>
+                                {booking.lab?.address && (
+                                  <p className="text-xs text-slate-500 mt-0.5">{booking.lab.address}{booking.lab.pincode ? ` - ${booking.lab.pincode}` : ''}</p>
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-slate-400 uppercase mb-1">Date & time</p>
+                                <p className="font-medium text-slate-800">
+                                  {booking.scheduledDate ? format(new Date(booking.scheduledDate), 'd MMM yyyy') : (booking.reqDate ? format(new Date(booking.reqDate), 'd MMM yyyy') : '—')}
+                                </p>
+                                <p className="text-xs text-slate-500">{booking.timeSlot ?? '—'}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-slate-400 uppercase mb-1">Status</p>
+                                <Badge variant={STATUS_VARIANT[booking.status]} size="sm">{STATUS_LABEL[booking.status]}</Badge>
+                                {booking.amountCharged != null && (
+                                  <p className="text-xs text-slate-500 mt-1.5">Charged: ₹{Number(booking.amountCharged).toLocaleString('en-IN')}</p>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -374,14 +300,6 @@ export function CandidatesPage() {
       )}
 
       <BulkUploadModal open={bulkOpen} onClose={() => setBulkOpen(false)} />
-
-      {appointmentCandidate && (
-        <RequestAppointmentModal
-          candidate={appointmentCandidate}
-          open={!!appointmentCandidate}
-          onClose={() => setAppointmentCandidate(null)}
-        />
-      )}
     </div>
   );
 }

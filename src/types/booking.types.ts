@@ -29,20 +29,24 @@ export interface Booking {
     panNumber: string | null;
     gender: string;
     age: number;
+    storeId: string;
   };
   panel?: {
     id: string;
     name: string;
     mrp: number;
     costToVendor: number;
-  };
+    bundledTest?: { id: string; name: string; testsIncluded: string[] };
+  } | null;
   lab?: {
     id: string;
     name: string;
     contactName: string;
     contactMobile: string;
+    email: string;
     address: string | null;
-  };
+    pincode: string | null;
+  } | null;
   client?: {
     id: string;
     name: string | null;
@@ -50,10 +54,25 @@ export interface Booking {
   };
 }
 
+// A candidate awaiting booking — has appointmentDate, no booking yet.
+export interface BookingRequest {
+  id: string;
+  name: string;
+  employeeCode: string;
+  mobile: string;
+  gender: string;
+  age: number;
+  appointmentDate: string | null;
+  panNumber: string | null;
+  clientId: string;
+  store?: { id: string; name: string; storeCode: string } | null;
+  client?: { id: string; name: string | null; email: string } | null;
+}
+
 export interface CreateBookingInput {
   candidateId: string;
   panelId: string;
-  reqDate: string;
+  scheduledDate?: string;
   timeSlot?: string;
 }
 
