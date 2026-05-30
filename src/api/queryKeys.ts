@@ -29,4 +29,10 @@ export const queryKeys = {
     byId: (id: string) => ['panels', id] as const,
     pricing: (panelId: string) => ['panels', panelId, 'pricing'] as const,
   },
+  bookings: {
+    all: ['bookings'] as const,
+    pending: ['bookings', 'pending'] as const,
+    byStatus: (status: string) => ['bookings', 'status', status] as const,
+    byId: (id: string) => ['bookings', id] as const,
+  },
 };

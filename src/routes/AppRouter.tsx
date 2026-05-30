@@ -8,6 +8,7 @@ import { RegisterPage } from '../pages/auth/RegisterPage';
 import { DashboardPage } from '../pages/dashboard/DashboardPage';
 import { ClientsPage } from '../pages/admin/ClientsPage';
 import { ClientDetailPage } from '../pages/admin/ClientDetailPage';
+import { BookingRequestsPage } from '../pages/admin/BookingRequestsPage';
 import { ZonesPage } from '../pages/admin/ZonesPage';
 import { CitiesPage } from '../pages/admin/CitiesPage';
 import { ZoneCityPage } from '../pages/admin/ZoneCityPage';
@@ -41,6 +42,7 @@ export const AppRouter = () => (
           <Route element={<RoleRoute allowedRoles={ROLE_GROUPS.adminOnly} />}>
             <Route path="/admin/clients" element={<ClientsPage />} />
             <Route path="/admin/clients/:id" element={<ClientDetailPage />} />
+            <Route path="/admin/booking-requests" element={<BookingRequestsPage />} />
             <Route path="/admin/zones" element={<ZonesPage />} />
             <Route path="/admin/cities" element={<CitiesPage />} />
             <Route path="/admin/zone-city" element={<ZoneCityPage />} />
