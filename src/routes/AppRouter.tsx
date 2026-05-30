@@ -9,6 +9,7 @@ import { DashboardPage } from '../pages/dashboard/DashboardPage';
 import { ClientsPage } from '../pages/admin/ClientsPage';
 import { ZonesPage } from '../pages/admin/ZonesPage';
 import { CitiesPage } from '../pages/admin/CitiesPage';
+import { ZoneCityPage } from '../pages/admin/ZoneCityPage';
 import { StoresPage } from '../pages/admin/StoresPage';
 import { AddStorePage } from '../pages/admin/AddStorePage';
 import { LabsPage } from '../pages/admin/LabsPage';
@@ -40,6 +41,7 @@ export const AppRouter = () => (
             <Route path="/admin/clients" element={<ClientsPage />} />
             <Route path="/admin/zones" element={<ZonesPage />} />
             <Route path="/admin/cities" element={<CitiesPage />} />
+            <Route path="/admin/zone-city" element={<ZoneCityPage />} />
             <Route path="/admin/stores" element={<StoresPage />} />
             <Route path="/admin/stores/new" element={<AddStorePage />} />
             <Route path="/admin/labs" element={<LabsPage />} />
