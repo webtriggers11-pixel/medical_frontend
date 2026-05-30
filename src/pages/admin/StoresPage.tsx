@@ -105,6 +105,23 @@ function StoreModal({
       <form id="store-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {apiError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>}
 
+        {/* Client — read-only, cannot be reassigned */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Client</label>
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-500 cursor-not-allowed">
+            <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+            <span className="font-medium text-slate-700">
+              {editing?.client?.name ?? editing?.client?.email ?? '—'}
+            </span>
+            {editing?.client?.name && (
+              <span className="text-slate-400 text-xs">{editing.client.email}</span>
+            )}
+            <span className="ml-auto text-xs text-slate-400 italic">cannot change</span>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Combobox
             label="Zone"
