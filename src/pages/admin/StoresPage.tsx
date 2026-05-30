@@ -358,12 +358,15 @@ export function StoresPage() {
                     <td className="px-5 py-3.5 text-slate-500 text-xs">
                       {new Date(s.createdAt).toLocaleDateString('en-IN')}
                     </td>
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(s)}>Edit</Button>
-                        <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(s)}>Delete</Button>
-                      </div>
-                    </td>
+                    {isAdmin && (
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="sm" onClick={() => handleEdit(s)}>Edit</Button>
+                          <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(s)}>Delete</Button>
+                        </div>
+                      </td>
+                    )}
+                    {!isAdmin && <td className="px-5 py-3.5" />}
                   </tr>
                 ))}
               </tbody>
@@ -383,25 +386,29 @@ export function StoresPage() {
         </Card>
       )}
 
-      <StoreModal
-        key={editing?.id ?? 'closed'}
-        open={!!editing}
-        onClose={() => setEditing(null)}
-        editing={editing}
-      />
+      {isAdmin && (
+        <>
+          <StoreModal
+            key={editing?.id ?? 'closed'}
+            open={!!editing}
+            onClose={() => setEditing(null)}
+            editing={editing}
+          />
 
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        loading={deleteStore.isPending}
-        title="Delete store"
-        confirmLabel="Delete store"
-        message={<>Delete <strong>{deleteTarget?.name}</strong>? This cannot be undone.</>}
-        onConfirm={() => {
-          if (!deleteTarget) return;
-          deleteStore.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) });
-        }}
-      />
+          <ConfirmDialog
+            open={!!deleteTarget}
+            onClose={() => setDeleteTarget(null)}
+            loading={deleteStore.isPending}
+            title="Delete store"
+            confirmLabel="Delete store"
+            message={<>Delete <strong>{deleteTarget?.name}</strong>? This cannot be undone.</>}
+            onConfirm={() => {
+              if (!deleteTarget) return;
+              deleteStore.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) });
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }
