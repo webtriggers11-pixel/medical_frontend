@@ -5,6 +5,7 @@ import {
   useZones, useCities, useStores,
   useUpdateStore, useDeleteStore,
 } from '../../features/org/hooks/useOrg';
+import { useAuthStore } from '../../store/auth.store';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -191,6 +192,8 @@ export function StoresPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const navState = location.state as { zoneId?: string; cityId?: string } | null;
+  const currentUser = useAuthStore((s) => s.user);
+  const isAdmin = currentUser?.role === 'ADMIN';
 
   const { data: stores, isLoading, error } = useStores();
   const deleteStore = useDeleteStore();
@@ -203,7 +206,7 @@ export function StoresPage() {
   const [editing, setEditing] = useState<StoreWithLocation | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<StoreWithLocation | null>(null);
 
-  const goToAddStore = () => navigate('/stores/new');
+  const goToAddStore = () => navigate(isAdmin ? '/admin/stores/new' : '/stores/new');
 
   // Filter options derived from the stores the user actually has.
   const zoneOptions = useMemo(() => {
@@ -320,6 +323,7 @@ export function StoresPage() {
                 <tr className="border-b border-border">
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Store</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Code</th>
+                  {isAdmin && <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Client</th>}
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">City / Zone</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Store Head</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
@@ -332,6 +336,12 @@ export function StoresPage() {
                   <tr key={s.id} className="group hover:bg-slate-50/70 transition-colors">
                     <td className="px-5 py-3.5 font-medium text-slate-900">{s.name}</td>
                     <td className="px-5 py-3.5 text-slate-500 font-mono text-xs">{s.storeCode}</td>
+                    {isAdmin && (
+                      <td className="px-5 py-3.5 text-slate-600">
+                        <div className="font-medium">{s.client?.name ?? '—'}</div>
+                        <div className="text-xs text-slate-400">{s.client?.email}</div>
+                      </td>
+                    )}
                     <td className="px-5 py-3.5 text-slate-600">
                       <div>{s.city?.name ?? '—'}</div>
                       <div className="text-xs text-slate-400">{s.city?.zone?.name ?? '—'}</div>

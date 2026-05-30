@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import {
   useZones,
   useCities,
   useCreateStore,
 } from '../../features/org/hooks/useOrg';
+import { useUsers } from '../../features/users/hooks/useUsers';
+import { useAuthStore } from '../../store/auth.store';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Combobox } from '../../components/ui/Combobox';
@@ -25,6 +27,11 @@ import {
 
 /* ── step icons ─────────────────────────────────────────────────────── */
 
+const ClientIcon = (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+  </svg>
+);
 const MapIcon = (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" />
@@ -41,12 +48,6 @@ const StoreIcon = (
   </svg>
 );
 
-const STEPS: WizardStep[] = [
-  { title: 'Zone', desc: 'Choose a region', icon: MapIcon },
-  { title: 'City', desc: 'Choose a city', icon: BuildingIcon },
-  { title: 'Details', desc: 'Store information', icon: StoreIcon },
-];
-
 /* ── form types ─────────────────────────────────────────────────────── */
 
 type StoreFormValues = {
@@ -58,18 +59,38 @@ type StoreFormValues = {
   email: string;
 };
 
+/* ── step definitions ────────────────────────────────────────────────── */
+
+const ADMIN_STEPS: WizardStep[] = [
+  { title: 'Client', desc: 'Assign to a client', icon: ClientIcon },
+  { title: 'Zone', desc: 'Choose a region', icon: MapIcon },
+  { title: 'City', desc: 'Choose a city', icon: BuildingIcon },
+  { title: 'Details', desc: 'Store information', icon: StoreIcon },
+];
+
+const USER_STEPS: WizardStep[] = [
+  { title: 'Zone', desc: 'Choose a region', icon: MapIcon },
+  { title: 'City', desc: 'Choose a city', icon: BuildingIcon },
+  { title: 'Details', desc: 'Store information', icon: StoreIcon },
+];
+
 export function AddStorePage() {
   const navigate = useNavigate();
-  const storesPath = '/stores';
+  const currentUser = useAuthStore((s) => s.user);
+  const isAdmin = currentUser?.role === 'ADMIN';
+
+  const storesPath = isAdmin ? '/admin/stores' : '/stores';
+  const STEPS = isAdmin ? ADMIN_STEPS : USER_STEPS;
 
   const [step, setStep] = useState(0);
+  const [clientId, setClientId] = useState('');
   const [zoneId, setZoneId] = useState('');
   const [cityId, setCityId] = useState('');
   const [apiError, setApiError] = useState('');
 
+  const { data: clients } = useUsers();
   const { data: zones } = useZones();
   const { data: cities } = useCities(zoneId);
-
   const createStore = useCreateStore();
 
   const {
@@ -79,10 +100,12 @@ export function AddStorePage() {
     formState: { errors, isSubmitting },
   } = useForm<StoreFormValues>();
 
+  const selectedClient = clients?.find((c) => c.id === clientId);
   const selectedZone = zones?.find((z) => z.id === zoneId);
   const selectedCity = cities?.find((c) => c.id === cityId);
   const watchedName = watch('name');
 
+  const clientOptions = clients?.map((c) => ({ value: c.id, label: c.name ?? c.email })) ?? [];
   const zoneOptions = zones?.map((z) => ({ value: z.id, label: z.name })) ?? [];
   const cityOptions = cities?.map((c) => ({ value: c.id, label: c.name })) ?? [];
 
@@ -94,19 +117,14 @@ export function AddStorePage() {
     setApiError('');
   };
 
-  const goNext = () => {
-    setApiError('');
-    setStep((s) => Math.min(s + 1, STEPS.length - 1));
-  };
-  const goBack = () => {
-    setApiError('');
-    setStep((s) => Math.max(s - 1, 0));
-  };
+  const goNext = () => { setApiError(''); setStep((s) => Math.min(s + 1, STEPS.length - 1)); };
+  const goBack = () => { setApiError(''); setStep((s) => Math.max(s - 1, 0)); };
 
   const onSubmit = async (values: StoreFormValues) => {
     if (!cityId) return;
     setApiError('');
     const payload: CreateStoreInput = {
+      ...(isAdmin && clientId ? { clientId } : {}),
       cityId,
       name: values.name,
       storeCode: values.storeCode,
@@ -123,14 +141,25 @@ export function AddStorePage() {
     }
   };
 
-  const canContinue = step === 0 ? !!zoneId : step === 1 ? !!cityId : true;
-  const summaryValues = [selectedZone?.name, selectedCity?.name, watchedName?.trim() || undefined];
+  // Which step index maps to which concept depends on role
+  const zoneStep = isAdmin ? 1 : 0;
+  const cityStep = isAdmin ? 2 : 1;
+  const detailStep = isAdmin ? 3 : 2;
+
+  const canContinue =
+    step === 0 ? (isAdmin ? !!clientId : !!zoneId) :
+    step === zoneStep ? !!zoneId :
+    step === cityStep ? !!cityId : true;
+
+  // Summary sidebar values
+  const summaryValues = isAdmin
+    ? [selectedClient?.name ?? selectedClient?.email, selectedZone?.name, selectedCity?.name, watchedName?.trim() || undefined]
+    : [selectedZone?.name, selectedCity?.name, watchedName?.trim() || undefined];
 
   /* ── render ───────────────────────────────────────────────────────── */
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 animate-fade-in pb-10">
-      {/* Back link */}
       <button
         onClick={() => navigate(storesPath)}
         className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-800"
@@ -142,13 +171,14 @@ export function AddStorePage() {
       <WizardHero
         eyebrow="New store"
         title="Add a new store"
-        subtitle="Pin the location, then fill in the details — done in three quick steps."
+        subtitle={isAdmin
+          ? 'Select the client, pin the location, then fill in the details.'
+          : 'Pin the location, then fill in the details — done in three quick steps.'}
         watermark={StoreIcon}
       />
 
-      {/* Two-pane: live summary + active step */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_1fr]">
-        {/* Summary sidebar (desktop) */}
+        {/* Summary sidebar */}
         <aside className="hidden lg:block">
           <div className="glass sticky top-6 space-y-6 rounded-3xl border border-border/70 p-6 shadow-card">
             <div>
@@ -175,9 +205,38 @@ export function AddStorePage() {
                 </p>
               )}
 
-              {/* STEP 1 — ZONE */}
-              {step === 0 && (
-                <div key="step-0" className="space-y-6 animate-slide-in-right">
+              {/* ADMIN STEP 0 — CLIENT */}
+              {isAdmin && step === 0 && (
+                <div key="step-client" className="space-y-6 animate-slide-in-right">
+                  <StepHeading
+                    icon={ClientIcon}
+                    title="Which client?"
+                    subtitle="Select the client (company) this store will belong to."
+                  />
+                  <Combobox
+                    label="Client"
+                    required
+                    options={clientOptions}
+                    value={clientId}
+                    onChange={(id) => { setClientId(id); setApiError(''); }}
+                    placeholder="Select a client…"
+                    searchPlaceholder="Search clients…"
+                    emptyText="No clients found"
+                  />
+                  {selectedClient && (
+                    <div className="flex items-center gap-2 rounded-xl border border-success/30 bg-success-light/50 px-4 py-3 text-sm text-emerald-700 animate-slide-in">
+                      <span className="text-success">{CheckIcon}</span>
+                      <span>
+                        Store will be assigned to <span className="font-semibold">{selectedClient.name ?? selectedClient.email}</span>.
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ZONE STEP */}
+              {step === zoneStep && (
+                <div key="step-zone" className="space-y-6 animate-slide-in-right">
                   <StepHeading icon={MapIcon} title="Which zone?" subtitle="Search and select the zone this store belongs to." />
                   <Combobox
                     label="Zone"
@@ -192,9 +251,9 @@ export function AddStorePage() {
                 </div>
               )}
 
-              {/* STEP 2 — CITY */}
-              {step === 1 && (
-                <div key="step-1" className="space-y-6 animate-slide-in-right">
+              {/* CITY STEP */}
+              {step === cityStep && (
+                <div key="step-city" className="space-y-6 animate-slide-in-right">
                   <StepHeading
                     icon={BuildingIcon}
                     title={`Which city in ${selectedZone?.name}?`}
@@ -205,10 +264,7 @@ export function AddStorePage() {
                     required
                     options={cityOptions}
                     value={cityId}
-                    onChange={(id) => {
-                      setCityId(id);
-                      setApiError('');
-                    }}
+                    onChange={(id) => { setCityId(id); setApiError(''); }}
                     placeholder="Select a city…"
                     searchPlaceholder="Search cities…"
                     emptyText="No cities in this zone"
@@ -225,12 +281,13 @@ export function AddStorePage() {
                 </div>
               )}
 
-              {/* STEP 3 — DETAILS */}
-              {step === 2 && (
-                <div key="step-2" className="space-y-6 animate-slide-in-right">
+              {/* DETAILS STEP */}
+              {step === detailStep && (
+                <div key="step-details" className="space-y-6 animate-slide-in-right">
                   <StepHeading icon={StoreIcon} title="Store details" subtitle="Location is locked in — just fill in the rest to create the store." />
 
-                  <div className="grid grid-cols-1 gap-4 rounded-2xl border border-border/60 bg-slate-50/70 p-4 sm:grid-cols-2">
+                  <div className={`grid grid-cols-1 gap-4 rounded-2xl border border-border/60 bg-slate-50/70 p-4 ${isAdmin ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+                    {isAdmin && <LockedField label="Client" value={selectedClient?.name ?? selectedClient?.email ?? '—'} />}
                     <LockedField label="Zone" value={selectedZone?.name ?? '—'} />
                     <LockedField label="City" value={selectedCity?.name ?? '—'} />
                   </div>
@@ -295,7 +352,7 @@ export function AddStorePage() {
                 <span className="hidden text-xs font-medium text-slate-400 sm:block">
                   Step {step + 1} of {STEPS.length}
                 </span>
-                {step < 2 ? (
+                {step < STEPS.length - 1 ? (
                   <Button onClick={goNext} disabled={!canContinue} iconRight={ArrowRightIcon}>
                     Continue
                   </Button>

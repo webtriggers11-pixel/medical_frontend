@@ -31,7 +31,7 @@ export interface Store {
   createdAt: string;
 }
 
-// Store as returned by the list endpoint, enriched with its city + zone.
+// Store as returned by the list endpoint, enriched with its city + zone + client.
 export interface StoreWithLocation extends Store {
   city?: {
     id: string;
@@ -39,12 +39,14 @@ export interface StoreWithLocation extends Store {
     zoneId: string;
     zone: { id: string; name: string } | null;
   } | null;
+  client?: { id: string; name: string | null; email: string } | null;
+  _count?: { candidates: number };
 }
 
 export interface CreateZoneInput { name: string; }
 export interface CreateCityInput { zoneId: string; name: string; }
 export interface CreateStoreInput {
-  // The owning client is the logged-in user — assigned by the backend, never sent.
+  clientId?: string;  // ADMIN only — omit when USER creates their own store
   cityId: string; storeCode: string; name: string;
   address: string; storeHeadName: string; storeHeadMobile: string; email?: string;
 }

@@ -40,6 +40,8 @@ export const AppRouter = () => (
             <Route path="/admin/clients" element={<ClientsPage />} />
             <Route path="/admin/zones" element={<ZonesPage />} />
             <Route path="/admin/cities" element={<CitiesPage />} />
+            <Route path="/admin/stores" element={<StoresPage />} />
+            <Route path="/admin/stores/new" element={<AddStorePage />} />
             <Route path="/admin/labs" element={<LabsPage />} />
             <Route path="/admin/panels" element={<PanelsPage />} />
           </Route>
