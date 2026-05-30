@@ -1,7 +1,9 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Modal } from '../../../components/ui/Modal';
 import { Button } from '../../../components/ui/Button';
+import { Combobox } from '../../../components/ui/Combobox';
 import { useBulkUploadCandidates } from '../hooks/useBulkUploadCandidates';
+import { useZones, useCities, useStores } from '../hooks/useOrgCascade';
 import { candidatesService } from '../../../services/candidates.service';
 import { getApiErrorMessage } from '../../../lib/apiError';
 import type { BulkUploadResult } from '../../../types/candidate.types';
@@ -18,10 +20,29 @@ export function BulkUploadModal({ open, onClose }: BulkUploadModalProps) {
   const [result, setResult] = useState<BulkUploadResult | null>(null);
   const { mutateAsync, isPending } = useBulkUploadCandidates();
 
+  // Store is chosen here (not in the CSV); all uploaded candidates go to it.
+  const [zoneId, setZoneId] = useState('');
+  const [cityId, setCityId] = useState('');
+  const [storeId, setStoreId] = useState('');
+
+  const { data: zones, isLoading: zonesLoading } = useZones();
+  const { data: cities, isLoading: citiesLoading } = useCities(zoneId || undefined);
+  const { data: stores, isLoading: storesLoading } = useStores(cityId || undefined);
+
+  const zoneOptions = useMemo(() => (zones ?? []).map((z) => ({ label: z.name, value: z.id })), [zones]);
+  const cityOptions = useMemo(() => (cities ?? []).map((c) => ({ label: c.name, value: c.id })), [cities]);
+  const storeOptions = useMemo(
+    () => (stores ?? []).map((s) => ({ label: `${s.name} (${s.storeCode})`, value: s.id })),
+    [stores],
+  );
+
   const close = () => {
     setFile(null);
     setError('');
     setResult(null);
+    setZoneId('');
+    setCityId('');
+    setStoreId('');
     onClose();
   };
 
@@ -36,14 +57,21 @@ export function BulkUploadModal({ open, onClose }: BulkUploadModalProps) {
     setFile(selected);
   };
 
+  const onZoneChange = (id: string) => { setZoneId(id); setCityId(''); setStoreId(''); setError(''); };
+  const onCityChange = (id: string) => { setCityId(id); setStoreId(''); setError(''); };
+
   const handleUpload = async () => {
+    if (!storeId) {
+      setError('Select the store these candidates belong to first.');
+      return;
+    }
     if (!file) {
       setError('Choose a CSV file first.');
       return;
     }
     setError('');
     try {
-      const res = await mutateAsync(file);
+      const res = await mutateAsync({ file, storeId });
       setResult(res);
     } catch (err) {
       setError(getApiErrorMessage(err, 'Upload failed.'));
@@ -63,7 +91,7 @@ export function BulkUploadModal({ open, onClose }: BulkUploadModalProps) {
             <Button variant="outline" onClick={close} disabled={isPending}>
               Cancel
             </Button>
-            <Button onClick={handleUpload} loading={isPending} disabled={!file}>
+            <Button onClick={handleUpload} loading={isPending} disabled={!file || !storeId}>
               Upload
             </Button>
           </>
@@ -79,9 +107,45 @@ export function BulkUploadModal({ open, onClose }: BulkUploadModalProps) {
 
         {!result && (
           <>
+            <fieldset disabled={isPending} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <Combobox
+                label="Zone"
+                required
+                options={zoneOptions}
+                value={zoneId}
+                onChange={onZoneChange}
+                placeholder={zonesLoading ? 'Loading…' : 'Select zone'}
+                searchPlaceholder="Search zones…"
+                loading={zonesLoading}
+              />
+              <Combobox
+                label="City"
+                required
+                options={cityOptions}
+                value={cityId}
+                onChange={onCityChange}
+                placeholder={!zoneId ? 'Select zone first' : citiesLoading ? 'Loading…' : 'Select city'}
+                searchPlaceholder="Search cities…"
+                disabled={!zoneId}
+                loading={citiesLoading}
+              />
+              <Combobox
+                label="Store"
+                required
+                options={storeOptions}
+                value={storeId}
+                onChange={(id) => { setStoreId(id); setError(''); }}
+                placeholder={!cityId ? 'Select city first' : storesLoading ? 'Loading…' : 'Select store'}
+                searchPlaceholder="Search stores…"
+                disabled={!cityId}
+                loading={storesLoading}
+              />
+            </fieldset>
+
             <p className="text-sm text-slate-500">
-              Upload a CSV with columns{' '}
-              <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">storeId, name, employeeCode, mobile, gender, age, candidateType, doj, pincode, email, panNumber</code>.
+              Pick the store above — <span className="font-medium text-slate-600">every candidate in the file is assigned to it</span>. Then upload a CSV with columns{' '}
+              <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">name, employeeCode, mobile, gender, age, candidateType, doj, appointmentDate, pincode, email, panNumber</code>.
+              Dates use <code className="text-xs bg-slate-100 px-1 py-0.5 rounded">YYYY-MM-DD</code>, and <code className="text-xs bg-slate-100 px-1 py-0.5 rounded">appointmentDate</code> must be a future date.
               All required except <code className="text-xs bg-slate-100 px-1 py-0.5 rounded">panNumber</code>. Need the format?{' '}
               <button
                 type="button"
@@ -96,7 +160,8 @@ export function BulkUploadModal({ open, onClose }: BulkUploadModalProps) {
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
-              className="w-full rounded-2xl border-2 border-dashed border-border hover:border-primary-300 hover:bg-primary-50/30 transition-colors px-6 py-10 flex flex-col items-center gap-2 text-center"
+              disabled={isPending}
+              className="w-full rounded-2xl border-2 border-dashed border-border hover:border-primary-300 hover:bg-primary-50/30 transition-colors px-6 py-10 flex flex-col items-center gap-2 text-center disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-border disabled:hover:bg-transparent"
             >
               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

@@ -17,9 +17,10 @@ export const candidatesService = {
     return res.data.data;
   },
 
-  bulkUpload: async (file: File): Promise<BulkUploadResult> => {
+  bulkUpload: async (file: File, storeId: string): Promise<BulkUploadResult> => {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('storeId', storeId);
     const res = await api.post<ApiResponse<BulkUploadResult>>(
       '/candidates/bulk',
       formData,

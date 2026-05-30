@@ -26,7 +26,8 @@ export function EmailStep({ onSuccess }: EmailStepProps) {
         <p className="text-slate-500 mt-2">Enter your email to get started</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <fieldset disabled={isPending} className="space-y-5">
         <Input
           label="Email address"
           type="email"
@@ -56,6 +57,7 @@ export function EmailStep({ onSuccess }: EmailStepProps) {
         <Button type="submit" loading={isPending} fullWidth size="lg">
           {isPending ? 'Sending code...' : 'Send verification code'}
         </Button>
+        </fieldset>
       </form>
 
       <p className="mt-8 text-center text-sm text-slate-500">

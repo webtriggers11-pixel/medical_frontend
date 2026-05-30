@@ -88,9 +88,9 @@ export function AddStorePage() {
   const [cityId, setCityId] = useState('');
   const [apiError, setApiError] = useState('');
 
-  const { data: clients } = useUsers();
-  const { data: zones } = useZones();
-  const { data: cities } = useCities(zoneId);
+  const { data: clients, isLoading: clientsLoading } = useUsers();
+  const { data: zones, isLoading: zonesLoading } = useZones();
+  const { data: cities, isLoading: citiesLoading } = useCities(zoneId);
   const createStore = useCreateStore();
 
   const {
@@ -222,6 +222,7 @@ export function AddStorePage() {
                     placeholder="Select a client…"
                     searchPlaceholder="Search clients…"
                     emptyText="No clients found"
+                    loading={clientsLoading}
                   />
                   {selectedClient && (
                     <div className="flex items-center gap-2 rounded-xl border border-success/30 bg-success-light/50 px-4 py-3 text-sm text-emerald-700 animate-slide-in">
@@ -247,6 +248,7 @@ export function AddStorePage() {
                     placeholder="Select a zone…"
                     searchPlaceholder="Search zones…"
                     emptyText="No zones found"
+                    loading={zonesLoading}
                   />
                 </div>
               )}
@@ -268,6 +270,7 @@ export function AddStorePage() {
                     placeholder="Select a city…"
                     searchPlaceholder="Search cities…"
                     emptyText="No cities in this zone"
+                    loading={citiesLoading}
                   />
                   {selectedCity && (
                     <div className="flex items-center gap-2 rounded-xl border border-success/30 bg-success-light/50 px-4 py-3 text-sm text-emerald-700 animate-slide-in">
@@ -292,7 +295,8 @@ export function AddStorePage() {
                     <LockedField label="City" value={selectedCity?.name ?? '—'} />
                   </div>
 
-                  <form id="store-details-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                  <form id="store-details-form" onSubmit={handleSubmit(onSubmit)}>
+                    <fieldset disabled={isSubmitting || createStore.isPending} className="space-y-4">
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <Input
                         label="Store name"
@@ -333,6 +337,7 @@ export function AddStorePage() {
                       placeholder="store@example.com (optional)"
                       {...register('email')}
                     />
+                    </fieldset>
                   </form>
                 </div>
               )}

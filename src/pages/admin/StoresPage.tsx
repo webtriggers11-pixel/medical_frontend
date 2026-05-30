@@ -46,9 +46,9 @@ function StoreModal({
 }: {
   open: boolean; onClose: () => void; editing: StoreWithLocation | null;
 }) {
-  const { data: zones } = useZones();
+  const { data: zones, isLoading: zonesLoading } = useZones();
   const [modalZoneId, setModalZoneId] = useState(editing?.city?.zoneId ?? '');
-  const { data: modalCities } = useCities(modalZoneId);
+  const { data: modalCities, isLoading: citiesLoading } = useCities(modalZoneId);
 
   const updateStore = useUpdateStore();
   const [apiError, setApiError] = useState('');
@@ -102,7 +102,8 @@ function StoreModal({
         </div>
       }
     >
-      <form id="store-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form id="store-form" onSubmit={handleSubmit(onSubmit)}>
+        <fieldset disabled={isSubmitting} className="space-y-4">
         {apiError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>}
 
         {/* Client — read-only, cannot be reassigned */}
@@ -134,6 +135,7 @@ function StoreModal({
               setModalZoneId(v);
               setValue('cityId', '');
             }}
+            loading={zonesLoading}
           />
           <Controller
             name="cityId"
@@ -150,6 +152,7 @@ function StoreModal({
                 value={field.value ?? ''}
                 onChange={field.onChange}
                 error={errors.cityId?.message}
+                loading={citiesLoading}
               />
             )}
           />
@@ -200,6 +203,7 @@ function StoreModal({
           placeholder="store@example.com (optional)"
           {...register('email')}
         />
+        </fieldset>
       </form>
     </Modal>
   );
@@ -288,6 +292,7 @@ export function StoresPage() {
             emptyText="No zones"
             value={selectedZoneId}
             onChange={(v) => { setSelectedZoneId(v); setSelectedCityId(''); }}
+            loading={isLoading}
           />
         </div>
         <div className="w-52">
@@ -299,6 +304,7 @@ export function StoresPage() {
             emptyText={selectedZoneId ? 'No cities in this zone' : 'No cities'}
             value={selectedCityId}
             onChange={setSelectedCityId}
+            loading={isLoading}
           />
         </div>
         <SearchInput

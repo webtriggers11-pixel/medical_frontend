@@ -13,6 +13,8 @@ interface DatePickerProps {
   placeholder?: string;
   /** Disable dates after today (useful for past-only fields). */
   disableFuture?: boolean;
+  /** Earliest selectable date — anything before it is disabled. */
+  minDate?: Date;
 }
 
 export function DatePicker({
@@ -23,6 +25,7 @@ export function DatePicker({
   required,
   placeholder = 'Select date',
   disableFuture,
+  minDate,
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -97,6 +100,7 @@ export function DatePicker({
             w-full h-10 rounded-xl border bg-surface text-sm text-left
             transition-all duration-200 flex items-center
             focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500
+            disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-50
             ${error ? 'border-danger ring-2 ring-danger/10' : 'border-border hover:border-slate-300'}
             pl-3.5 pr-10
             ${value ? 'text-slate-900' : 'text-slate-400'}
@@ -128,11 +132,14 @@ export function DatePicker({
             <DayPicker
               mode="single"
               selected={value}
-              defaultMonth={value}
+              defaultMonth={value ?? minDate}
               captionLayout="dropdown"
               startMonth={new Date(1980, 0)}
               endMonth={new Date(new Date().getFullYear() + 5, 11)}
-              disabled={disableFuture ? { after: new Date() } : undefined}
+              disabled={[
+                ...(disableFuture ? [{ after: new Date() }] : []),
+                ...(minDate ? [{ before: minDate }] : []),
+              ]}
               onSelect={(date) => {
                 onChange(date);
                 setOpen(false);

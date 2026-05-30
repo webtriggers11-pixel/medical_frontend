@@ -65,7 +65,8 @@ function AddClientModal({ open, onClose }: { open: boolean; onClose: () => void 
         </div>
       }
     >
-      <form id="client-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form id="client-form" onSubmit={handleSubmit(onSubmit)}>
+        <fieldset disabled={isSubmitting} className="space-y-4">
         {apiError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>}
         <Input
           label="Client name"
@@ -98,6 +99,7 @@ function AddClientModal({ open, onClose }: { open: boolean; onClose: () => void 
           })}
           error={errors.password?.message}
         />
+        </fieldset>
       </form>
     </Modal>
   );

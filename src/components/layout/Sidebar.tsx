@@ -23,7 +23,7 @@ const navItems: NavItem[] = [
   },
   // USER routes
   {
-    label: 'Candidates',
+    label: 'Manage Candidate',
     path: '/candidates',
     roles: ['USER'],
     icon: (

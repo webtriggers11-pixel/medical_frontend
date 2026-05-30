@@ -61,7 +61,8 @@ function CityModal({
         </div>
       }
     >
-      <form id="city-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form id="city-form" onSubmit={handleSubmit(onSubmit)}>
+        <fieldset disabled={isSubmitting} className="space-y-4">
         {apiError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>}
         <Input
           label="City name"
@@ -70,6 +71,7 @@ function CityModal({
           {...register('name', { required: 'Required' })}
           error={errors.name?.message}
         />
+        </fieldset>
       </form>
     </Modal>
   );

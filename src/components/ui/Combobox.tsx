@@ -261,6 +261,16 @@ export function Combobox({
             </div>
 
             <ul ref={listRef} className="max-h-60 overflow-y-auto p-1.5">
+              {loading && filtered.length === 0 && (
+                <>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <li key={`sk-${i}`} className="flex items-center gap-2.5 px-2.5 py-2">
+                      <span className="h-4 flex-1 animate-pulse rounded bg-slate-100" style={{ maxWidth: `${70 - i * 8}%` }} />
+                    </li>
+                  ))}
+                </>
+              )}
+
               {filtered.map((opt, i) => {
                 const isSelected = opt.value === value;
                 const isActive = i === activeIndex;
@@ -304,7 +314,7 @@ export function Combobox({
                 </li>
               )}
 
-              {filtered.length === 0 && !showCreate && (
+              {filtered.length === 0 && !showCreate && !loading && (
                 <li className="px-2.5 py-6 text-center text-sm text-slate-400">{emptyText}</li>
               )}
             </ul>

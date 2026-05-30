@@ -28,7 +28,8 @@ export function LoginPage() {
         <p className="text-slate-500 mt-2">Sign in to your account to continue</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <fieldset disabled={isPending} className="space-y-5">
         <Input
           label="Email address"
           type="email"
@@ -72,6 +73,7 @@ export function LoginPage() {
         <Button type="submit" loading={isPending} fullWidth size="lg">
           Sign in
         </Button>
+        </fieldset>
       </form>
 
       <p className="mt-8 text-center text-sm text-slate-500">

@@ -12,6 +12,7 @@ export interface Candidate {
   age: number;
   candidateType: CandidateType;
   doj: string;
+  appointmentDate: string | null;
   pincode: string;
   email: string;
   panNumber: string | null;
@@ -30,6 +31,7 @@ export interface CreateCandidateInput {
   age: number;
   candidateType: CandidateType;
   doj: string; // ISO date (YYYY-MM-DD)
+  appointmentDate: string; // ISO date (YYYY-MM-DD), must be a future date
   pincode: string;
   email: string;
   panNumber?: string;

@@ -154,7 +154,8 @@ function LabModal({ open, onClose, editing }: { open: boolean; onClose: () => vo
         </div>
       }
     >
-      <form id="lab-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form id="lab-form" onSubmit={handleSubmit(onSubmit)}>
+        <fieldset disabled={isSubmitting} className="space-y-4">
         {apiError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>}
         <Input
           label="Lab name"
@@ -186,6 +187,7 @@ function LabModal({ open, onClose, editing }: { open: boolean; onClose: () => vo
           {...register('email', { required: 'Required' })}
           error={errors.email?.message}
         />
+        </fieldset>
       </form>
     </Modal>
   );
@@ -257,6 +259,7 @@ function BundledTestForm({
       {apiError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>}
 
       <form id="bundled-test-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <fieldset disabled={isSubmitting} className="space-y-4">
         <Input
           label="Test package name"
           required
@@ -283,6 +286,7 @@ function BundledTestForm({
             {...register('defaultTiming')}
           />
         </div>
+        </fieldset>
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="outline" size="sm" type="button" onClick={onCancel}>Cancel</Button>
           <Button size="sm" type="submit" loading={isSubmitting}>

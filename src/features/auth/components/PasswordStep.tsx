@@ -32,7 +32,8 @@ export function PasswordStep({ setupToken }: PasswordStepProps) {
         <p className="text-slate-500 mt-2">Choose a strong password for your account</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <fieldset disabled={isPending} className="space-y-5">
         <Input
           label="Password"
           type="password"
@@ -79,6 +80,7 @@ export function PasswordStep({ setupToken }: PasswordStepProps) {
         <Button type="submit" loading={isPending} fullWidth size="lg">
           {isPending ? 'Creating account...' : 'Create account'}
         </Button>
+        </fieldset>
       </form>
     </div>
   );

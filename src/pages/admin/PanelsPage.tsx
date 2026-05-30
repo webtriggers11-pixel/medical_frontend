@@ -53,10 +53,10 @@ interface PanelFormValues {
 
 function CreatePanelModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const createPanel = useCreatePanel();
-  const { data: labs } = useLabs();
+  const { data: labs, isLoading: labsLoading } = useLabs();
   const [apiError, setApiError] = useState('');
   const [selectedLabId, setSelectedLabId] = useState('');
-  const { data: bundledTests } = useBundledTests(selectedLabId);
+  const { data: bundledTests, isLoading: testsLoading } = useBundledTests(selectedLabId);
 
   const { register, control, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm<PanelFormValues>();
 
@@ -100,7 +100,8 @@ function CreatePanelModal({ open, onClose }: { open: boolean; onClose: () => voi
         </div>
       }
     >
-      <form id="panel-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form id="panel-form" onSubmit={handleSubmit(onSubmit)}>
+        <fieldset disabled={isSubmitting} className="space-y-4">
         {apiError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>}
         <Controller
           name="labId"
@@ -116,6 +117,7 @@ function CreatePanelModal({ open, onClose }: { open: boolean; onClose: () => voi
               value={field.value ?? ''}
               onChange={field.onChange}
               error={errors.labId?.message}
+              loading={labsLoading}
             />
           )}
         />
@@ -134,6 +136,7 @@ function CreatePanelModal({ open, onClose }: { open: boolean; onClose: () => voi
               value={field.value ?? ''}
               onChange={field.onChange}
               error={errors.bundledTestId?.message}
+              loading={testsLoading}
             />
           )}
         />
@@ -163,6 +166,7 @@ function CreatePanelModal({ open, onClose }: { open: boolean; onClose: () => voi
           <Input label="Timing" placeholder='e.g. "Same day"' {...register('timing')} />
           <Input label="Lab contact person" {...register('labContact')} />
         </div>
+        </fieldset>
       </form>
     </Modal>
   );
@@ -196,7 +200,7 @@ function MarginPill({ costToClient, costToVendor }: { costToClient: number; cost
 }
 
 function SetPricingModal({ panel, open, onClose }: { panel: Panel; open: boolean; onClose: () => void }) {
-  const { data: clients } = useUsers();
+  const { data: clients, isLoading: clientsLoading } = useUsers();
   const setPricing = useSetPanelPricing(panel.id);
   const [apiError, setApiError] = useState('');
 
@@ -319,7 +323,8 @@ function SetPricingModal({ panel, open, onClose }: { panel: Panel; open: boolean
       <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
         {existing.length > 0 ? 'Add or update a client' : 'Set client pricing'}
       </p>
-      <form id="pricing-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form id="pricing-form" onSubmit={handleSubmit(onSubmit)}>
+        <fieldset disabled={isSubmitting} className="space-y-4">
         {apiError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>}
 
         <Controller
@@ -336,6 +341,7 @@ function SetPricingModal({ panel, open, onClose }: { panel: Panel; open: boolean
               value={field.value ?? ''}
               onChange={field.onChange}
               error={errors.clientId?.message}
+              loading={clientsLoading}
             />
           )}
         />
@@ -373,6 +379,7 @@ function SetPricingModal({ panel, open, onClose }: { panel: Panel; open: boolean
             error={errors.discountedPrice?.message}
           />
         </div>
+        </fieldset>
       </form>
     </Modal>
   );

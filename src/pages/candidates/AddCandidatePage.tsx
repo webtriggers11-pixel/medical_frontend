@@ -41,10 +41,17 @@ const BriefcaseIcon = (
   </svg>
 );
 
+const CalendarIcon = (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+  </svg>
+);
+
 const STEPS: WizardStep[] = [
   { title: 'Location', desc: 'Zone, city & store', icon: LocationIcon },
   { title: 'Personal', desc: 'Candidate details', icon: UserIcon },
   { title: 'Employment', desc: 'Job & ID details', icon: BriefcaseIcon },
+  { title: 'Appointment', desc: 'Schedule checkup', icon: CalendarIcon },
 ];
 
 /* ── form ───────────────────────────────────────────────────────────── */
@@ -60,6 +67,7 @@ interface FormState {
   age: string;
   candidateType: string;
   doj: Date | undefined;
+  appointmentDate: Date | undefined;
   pincode: string;
   email: string;
   panNumber: string;
@@ -67,7 +75,8 @@ interface FormState {
 
 const EMPTY: FormState = {
   zoneId: '', cityId: '', storeId: '', name: '', employeeCode: '', mobile: '',
-  gender: '', age: '', candidateType: '', doj: undefined, pincode: '', email: '', panNumber: '',
+  gender: '', age: '', candidateType: '', doj: undefined, appointmentDate: undefined,
+  pincode: '', email: '', panNumber: '',
 };
 
 type Errors = Partial<Record<keyof FormState, string>>;
@@ -105,10 +114,17 @@ function validateEmployment(f: FormState): Errors {
   return e;
 }
 
+function validateAppointment(f: FormState): Errors {
+  const e: Errors = {};
+  if (!f.appointmentDate) e.appointmentDate = 'Appointment date is required';
+  return e;
+}
+
 const firstInvalidStep = (e: Errors): number => {
   if (e.zoneId || e.cityId || e.storeId) return 0;
   if (e.name || e.employeeCode || e.mobile || e.gender || e.age || e.email) return 1;
-  return 2;
+  if (e.candidateType || e.doj || e.pincode || e.panNumber) return 2;
+  return 3;
 };
 
 export function AddCandidatePage() {
@@ -156,7 +172,12 @@ export function AddCandidatePage() {
   };
 
   const goNext = () => {
-    const v = step === 0 ? validateLocation(form) : validatePersonal(form);
+    const v =
+      step === 0
+        ? validateLocation(form)
+        : step === 1
+          ? validatePersonal(form)
+          : validateEmployment(form);
     if (Object.keys(v).length > 0) {
       setErrors(v);
       return;
@@ -173,7 +194,12 @@ export function AddCandidatePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setApiError('');
-    const all = { ...validateLocation(form), ...validatePersonal(form), ...validateEmployment(form) };
+    const all = {
+      ...validateLocation(form),
+      ...validatePersonal(form),
+      ...validateEmployment(form),
+      ...validateAppointment(form),
+    };
     if (Object.keys(all).length > 0) {
       setErrors(all);
       setStep(firstInvalidStep(all));
@@ -189,6 +215,7 @@ export function AddCandidatePage() {
         age: Number(form.age),
         candidateType: form.candidateType as CandidateType,
         doj: format(form.doj as Date, 'yyyy-MM-dd'),
+        appointmentDate: format(form.appointmentDate as Date, 'yyyy-MM-dd'),
         pincode: form.pincode.trim(),
         email: form.email.trim(),
         panNumber: form.panNumber.trim().toUpperCase() || undefined,
@@ -199,9 +226,19 @@ export function AddCandidatePage() {
     }
   };
 
+  // Appointments can only be booked from tomorrow onward — today and past
+  // dates are disabled in the calendar.
+  const minAppointmentDate = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 1);
+    return d;
+  }, []);
+
   const canContinue = step === 0 ? !!form.storeId : true;
   const locationValue = selectedStore?.name ?? selectedCity?.name ?? selectedZone?.name;
-  const summaryValues = [locationValue, form.name.trim() || undefined, candidateTypeLabel];
+  const appointmentValue = form.appointmentDate ? format(form.appointmentDate, 'd MMM yyyy') : undefined;
+  const summaryValues = [locationValue, form.name.trim() || undefined, candidateTypeLabel, appointmentValue];
 
   /* ── render ───────────────────────────────────────────────────────── */
 
@@ -219,7 +256,7 @@ export function AddCandidatePage() {
       <WizardHero
         eyebrow="New candidate"
         title="Add a new candidate"
-        subtitle="Pick the store, add the candidate's details, then finish — three quick steps."
+        subtitle="Pick the store, add the candidate's details, then schedule the appointment — four quick steps."
         watermark={UserIcon}
       />
 
@@ -265,6 +302,7 @@ export function AddCandidatePage() {
                       value={form.zoneId}
                       onChange={onZoneChange}
                       error={errors.zoneId}
+                      loading={zonesLoading}
                     />
                     <Combobox
                       label="City"
@@ -275,6 +313,7 @@ export function AddCandidatePage() {
                       onChange={onCityChange}
                       error={errors.cityId}
                       disabled={!form.zoneId}
+                      loading={citiesLoading}
                     />
                     <Combobox
                       label="Store"
@@ -285,6 +324,7 @@ export function AddCandidatePage() {
                       onChange={onPick('storeId')}
                       error={errors.storeId}
                       disabled={!form.cityId}
+                      loading={storesLoading}
                     />
                   </div>
                   {selectedStore && (
@@ -317,7 +357,7 @@ export function AddCandidatePage() {
               {/* STEP 3 — EMPLOYMENT */}
               {step === 2 && (
                 <div key="step-2" className="space-y-6 animate-slide-in-right">
-                  <StepHeading icon={BriefcaseIcon} title="Employment & ID" subtitle="Location is locked in — finish the job and ID details to create the candidate." />
+                  <StepHeading icon={BriefcaseIcon} title="Employment & ID" subtitle="Location is locked in — add the job and ID details, then schedule the appointment." />
 
                   <div className="grid grid-cols-1 gap-4 rounded-2xl border border-border/60 bg-slate-50/70 p-4 sm:grid-cols-3">
                     <LockedField label="Zone" value={selectedZone?.name ?? '—'} />
@@ -325,11 +365,32 @@ export function AddCandidatePage() {
                     <LockedField label="Store" value={selectedStore?.name ?? '—'} />
                   </div>
 
-                  <form id="candidate-details-form" onSubmit={handleSubmit} className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+                  <form id="candidate-details-form" onSubmit={(e) => { e.preventDefault(); goNext(); }}>
+                    <fieldset disabled={isPending} className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
                     <Combobox label="Candidate Type" required placeholder="Select type" options={CANDIDATE_TYPE_OPTIONS} value={form.candidateType} onChange={onPick('candidateType')} error={errors.candidateType} />
                     <DatePicker label="Date of Joining" required value={form.doj} onChange={(d) => set('doj', d)} error={errors.doj} />
                     <Input label="Pincode" required placeholder="Enter pincode" inputMode="numeric" maxLength={6} value={form.pincode} onChange={onInput('pincode')} error={errors.pincode} />
                     <Input label="PAN Number" placeholder="ABCDE1234F" maxLength={10} value={form.panNumber} onChange={onInput('panNumber')} error={errors.panNumber} className="uppercase" />
+                    </fieldset>
+                  </form>
+                </div>
+              )}
+
+              {/* STEP 4 — APPOINTMENT */}
+              {step === 3 && (
+                <div key="step-3" className="space-y-6 animate-slide-in-right">
+                  <StepHeading icon={CalendarIcon} title="Schedule appointment" subtitle="Pick a date for the candidate's health checkup. This is optional — you can leave it blank and schedule later." />
+
+                  <div className="grid grid-cols-1 gap-4 rounded-2xl border border-border/60 bg-slate-50/70 p-4 sm:grid-cols-3">
+                    <LockedField label="Store" value={selectedStore?.name ?? '—'} />
+                    <LockedField label="Candidate" value={form.name.trim() || '—'} />
+                    <LockedField label="Joining" value={form.doj ? format(form.doj, 'd MMM yyyy') : '—'} />
+                  </div>
+
+                  <form id="appointment-form" onSubmit={handleSubmit}>
+                    <fieldset disabled={isPending} className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+                      <DatePicker label="Appointment Date" required minDate={minAppointmentDate} value={form.appointmentDate} onChange={(d) => set('appointmentDate', d)} error={errors.appointmentDate} />
+                    </fieldset>
                   </form>
                 </div>
               )}
@@ -349,12 +410,12 @@ export function AddCandidatePage() {
                 <span className="hidden text-xs font-medium text-slate-400 sm:block">
                   Step {step + 1} of {STEPS.length}
                 </span>
-                {step < 2 ? (
+                {step < STEPS.length - 1 ? (
                   <Button onClick={goNext} disabled={!canContinue} iconRight={ArrowRightIcon}>
                     Continue
                   </Button>
                 ) : (
-                  <Button type="submit" form="candidate-details-form" loading={isPending} icon={CheckIcon}>
+                  <Button type="submit" form="appointment-form" loading={isPending} icon={CheckIcon}>
                     Create candidate
                   </Button>
                 )}
