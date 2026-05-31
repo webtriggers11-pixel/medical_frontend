@@ -4,6 +4,7 @@ export interface ReportFile {
   id: string;
   reportId: string;
   fileUrl: string;
+  fileKey?: string | null;
   fileName: string;
   fileSize: number | null;
   testsCovered: string[];
@@ -36,6 +37,7 @@ export interface Report {
 /** Descriptor returned by the upload endpoint for a stored file. */
 export interface UploadedFile {
   fileUrl: string;
+  fileKey?: string;
   fileName: string;
   fileSize?: number;
 }

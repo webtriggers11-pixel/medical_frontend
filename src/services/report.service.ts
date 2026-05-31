@@ -29,6 +29,12 @@ export const reportService = {
     return res.data.data;
   },
 
+  // Resolve a downloadable URL for a stored file (pre-signed S3 URL, or legacy path).
+  getFileUrl: async (fileId: string): Promise<string> => {
+    const res = await api.get<ApiResponse<{ url: string }>>(`/reports/files/${fileId}/url`);
+    return res.data.data.url;
+  },
+
   getByCandidate: async (candidateId: string): Promise<Report[]> => {
     const res = await api.get<ApiResponse<Report[]>>(`/reports/candidate/${candidateId}`);
     return res.data.data;

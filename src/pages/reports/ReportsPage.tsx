@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { useCandidates } from '../../features/candidates/hooks/useCandidates';
 import { useReports } from '../../features/reports/hooks/useReports';
-import { resolveFileUrl } from '../../services/report.service';
+import { reportService } from '../../services/report.service';
 import { FITNESS_VARIANT } from '../../types/report.types';
 import type { Report, ReportFile } from '../../types/report.types';
 import { Card } from '../../components/ui/Card';
@@ -21,11 +21,11 @@ const fmtSize = (bytes?: number | null) => {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 };
 
-/** Trigger a browser download (falls back to opening the file for cross-origin URLs). */
-function downloadFile(file: ReportFile) {
+/** Open a (pre-signed) URL for download/view. */
+function triggerDownload(url: string, name: string) {
   const a = document.createElement('a');
-  a.href = resolveFileUrl(file.fileUrl);
-  a.download = file.fileName;
+  a.href = url;
+  a.download = name;
   a.target = '_blank';
   a.rel = 'noreferrer';
   document.body.appendChild(a);
@@ -33,9 +33,23 @@ function downloadFile(file: ReportFile) {
   a.remove();
 }
 
+/** Resolve a fresh pre-signed URL for the file, then download/open it. */
+async function downloadFile(file: ReportFile) {
+  const url = await reportService.getFileUrl(file.id);
+  triggerDownload(url, file.fileName);
+}
+
 /** Download several files, lightly staggered so the browser doesn't block them. */
-function downloadFiles(files: ReportFile[]) {
-  files.forEach((f, i) => setTimeout(() => downloadFile(f), i * 350));
+async function downloadFiles(files: ReportFile[]) {
+  for (const f of files) {
+    try {
+      const url = await reportService.getFileUrl(f.id);
+      triggerDownload(url, f.fileName);
+    } catch {
+      /* skip files that fail to resolve */
+    }
+    await new Promise((r) => setTimeout(r, 350));
+  }
 }
 
 const DownloadIcon = (
@@ -252,17 +266,16 @@ export function ReportsPage() {
                           <div className="space-y-1.5 max-w-[360px]">
                             {files.map((f) => (
                               <div key={f.id} className="flex items-center gap-2">
-                                <a
-                                  href={resolveFileUrl(f.fileUrl)}
-                                  target="_blank"
-                                  rel="noreferrer"
+                                <button
+                                  type="button"
+                                  onClick={() => downloadFile(f)}
                                   className="flex items-center gap-1.5 text-sm text-slate-600 hover:text-primary-600 min-w-0"
-                                  title="View"
+                                  title="View / download"
                                 >
                                   {FileIcon}
                                   <span className="truncate">{f.fileName}</span>
                                   {f.fileSize ? <span className="text-xs text-slate-400 shrink-0">· {fmtSize(f.fileSize)}</span> : null}
-                                </a>
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => downloadFile(f)}
