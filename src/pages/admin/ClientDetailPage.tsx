@@ -417,7 +417,14 @@ function PanelsTab({ clientId }: { clientId: string }) {
                           ))}
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 text-slate-500 text-sm">{panel.lab?.name ?? '—'}</td>
+                      <td className="px-5 py-3.5 text-slate-500 text-sm">
+                        <p>{panel.lab?.name ?? '—'}</p>
+                        {panel.lab?.address && (
+                          <p className="text-xs text-slate-400 mt-0.5 max-w-[200px] whitespace-normal leading-snug" title={`${panel.lab.address}${panel.lab.pincode ? ` – ${panel.lab.pincode}` : ''}`}>
+                            {panel.lab.address}{panel.lab.pincode ? ` – ${panel.lab.pincode}` : ''}
+                          </p>
+                        )}
+                      </td>
                       <td className="px-5 py-3.5 text-right text-slate-600">{fmt(Number(panel.mrp))}</td>
                       <td className="px-5 py-3.5 text-right text-orange-600 font-medium">{fmt(vendorCost)}</td>
                       <td className="px-5 py-3.5 text-right text-blue-700 font-semibold">{fmt(clientCost)}</td>

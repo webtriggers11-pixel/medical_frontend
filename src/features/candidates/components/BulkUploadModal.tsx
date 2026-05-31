@@ -1,10 +1,11 @@
-import { useMemo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Modal } from '../../../components/ui/Modal';
 import { Button } from '../../../components/ui/Button';
-import { Combobox } from '../../../components/ui/Combobox';
 import { useBulkUploadCandidates } from '../hooks/useBulkUploadCandidates';
-import { useZones, useCities, useStores } from '../hooks/useOrgCascade';
 import { candidatesService } from '../../../services/candidates.service';
+import { orgService } from '../../../services/org.service';
+import { queryKeys } from '../../../api/queryKeys';
 import { getApiErrorMessage } from '../../../lib/apiError';
 import type { BulkUploadResult } from '../../../types/candidate.types';
 
@@ -20,29 +21,17 @@ export function BulkUploadModal({ open, onClose }: BulkUploadModalProps) {
   const [result, setResult] = useState<BulkUploadResult | null>(null);
   const { mutateAsync, isPending } = useBulkUploadCandidates();
 
-  // Store is chosen here (not in the CSV); all uploaded candidates go to it.
-  const [zoneId, setZoneId] = useState('');
-  const [cityId, setCityId] = useState('');
-  const [storeId, setStoreId] = useState('');
-
-  const { data: zones, isLoading: zonesLoading } = useZones();
-  const { data: cities, isLoading: citiesLoading } = useCities(zoneId || undefined);
-  const { data: stores, isLoading: storesLoading } = useStores(cityId || undefined);
-
-  const zoneOptions = useMemo(() => (zones ?? []).map((z) => ({ label: z.name, value: z.id })), [zones]);
-  const cityOptions = useMemo(() => (cities ?? []).map((c) => ({ label: c.name, value: c.id })), [cities]);
-  const storeOptions = useMemo(
-    () => (stores ?? []).map((s) => ({ label: `${s.name} (${s.storeCode})`, value: s.id })),
-    [stores],
-  );
+  // Reference list of the client's stores so they can copy the right storeId.
+  const { data: stores, isLoading: storesLoading } = useQuery({
+    queryKey: queryKeys.org.storesAll,
+    queryFn: () => orgService.listStores(),
+    enabled: open,
+  });
 
   const close = () => {
     setFile(null);
     setError('');
     setResult(null);
-    setZoneId('');
-    setCityId('');
-    setStoreId('');
     onClose();
   };
 
@@ -57,21 +46,14 @@ export function BulkUploadModal({ open, onClose }: BulkUploadModalProps) {
     setFile(selected);
   };
 
-  const onZoneChange = (id: string) => { setZoneId(id); setCityId(''); setStoreId(''); setError(''); };
-  const onCityChange = (id: string) => { setCityId(id); setStoreId(''); setError(''); };
-
   const handleUpload = async () => {
-    if (!storeId) {
-      setError('Select the store these candidates belong to first.');
-      return;
-    }
     if (!file) {
       setError('Choose a CSV file first.');
       return;
     }
     setError('');
     try {
-      const res = await mutateAsync({ file, storeId });
+      const res = await mutateAsync({ file });
       setResult(res);
     } catch (err) {
       setError(getApiErrorMessage(err, 'Upload failed.'));
@@ -91,7 +73,7 @@ export function BulkUploadModal({ open, onClose }: BulkUploadModalProps) {
             <Button variant="outline" onClick={close} disabled={isPending}>
               Cancel
             </Button>
-            <Button onClick={handleUpload} loading={isPending} disabled={!file || !storeId}>
+            <Button onClick={handleUpload} loading={isPending} disabled={!file}>
               Upload
             </Button>
           </>
@@ -107,55 +89,47 @@ export function BulkUploadModal({ open, onClose }: BulkUploadModalProps) {
 
         {!result && (
           <>
-            <fieldset disabled={isPending} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <Combobox
-                label="Zone"
-                required
-                options={zoneOptions}
-                value={zoneId}
-                onChange={onZoneChange}
-                placeholder={zonesLoading ? 'Loading…' : 'Select zone'}
-                searchPlaceholder="Search zones…"
-                loading={zonesLoading}
-              />
-              <Combobox
-                label="City"
-                required
-                options={cityOptions}
-                value={cityId}
-                onChange={onCityChange}
-                placeholder={!zoneId ? 'Select zone first' : citiesLoading ? 'Loading…' : 'Select city'}
-                searchPlaceholder="Search cities…"
-                disabled={!zoneId}
-                loading={citiesLoading}
-              />
-              <Combobox
-                label="Store"
-                required
-                options={storeOptions}
-                value={storeId}
-                onChange={(id) => { setStoreId(id); setError(''); }}
-                placeholder={!cityId ? 'Select city first' : storesLoading ? 'Loading…' : 'Select store'}
-                searchPlaceholder="Search stores…"
-                disabled={!cityId}
-                loading={storesLoading}
-              />
-            </fieldset>
-
             <p className="text-sm text-slate-500">
-              Pick the store above — <span className="font-medium text-slate-600">every candidate in the file is assigned to it</span>. Then upload a CSV with columns{' '}
-              <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">name, employeeCode, mobile, gender, age, candidateType, doj, appointmentDate, pincode, email, panNumber</code>.
+              Each candidate's store is set <span className="font-medium text-slate-600">per row</span> via the{' '}
+              <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">storeId</code> column, so candidates can go to different stores in one file. Upload a CSV with columns{' '}
+              <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">zone, city, storeId, name, employeeCode, mobile, gender, age, candidateType, doj, appointmentDate, pincode, email, panNumber</code>.
               Dates use <code className="text-xs bg-slate-100 px-1 py-0.5 rounded">YYYY-MM-DD</code>, and <code className="text-xs bg-slate-100 px-1 py-0.5 rounded">appointmentDate</code> must be a future date.
-              All required except <code className="text-xs bg-slate-100 px-1 py-0.5 rounded">panNumber</code>. Need the format?{' '}
+              All required except <code className="text-xs bg-slate-100 px-1 py-0.5 rounded">zone</code>, <code className="text-xs bg-slate-100 px-1 py-0.5 rounded">city</code> and <code className="text-xs bg-slate-100 px-1 py-0.5 rounded">panNumber</code>.{' '}
               <button
                 type="button"
                 onClick={() => candidatesService.downloadTemplate()}
                 className="text-primary-600 hover:text-primary-700 font-medium"
               >
                 Download the template
-              </button>
-              .
+              </button>{' '}
+              — it comes pre-filled with your stores' zone, city and storeId so you can copy the right id into each row.
             </p>
+
+            {/* Reference: the client's stores with zone / city / storeId */}
+            <div className="rounded-xl border border-blue-100 bg-blue-50/50 px-4 py-3">
+              <p className="text-xs font-semibold text-blue-700 mb-2">
+                Your stores — for reference while filling the CSV
+              </p>
+              {storesLoading ? (
+                <p className="text-sm text-slate-400">Loading your stores…</p>
+              ) : stores && stores.length > 0 ? (
+                <ul className="space-y-1.5 max-h-44 overflow-y-auto">
+                  {stores.map((s) => (
+                    <li key={s.id} className="text-sm text-slate-600">
+                      <span className="text-slate-400">{s.city?.zone?.name ?? '—'} › {s.city?.name ?? '—'}</span>{' '}
+                      <span className="font-medium text-slate-700">{s.name}</span>{' '}
+                      <span className="text-xs text-slate-400">({s.storeCode})</span>
+                      {' — '}
+                      <code className="text-xs font-mono text-slate-600">{s.id}</code>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-slate-400">
+                  You have no stores yet. Add a store before uploading candidates.
+                </p>
+              )}
+            </div>
 
             <button
               type="button"

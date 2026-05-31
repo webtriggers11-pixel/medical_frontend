@@ -24,6 +24,13 @@ export interface Report {
   remarks: string | null;
   createdAt: string;
   files?: ReportFile[];
+  candidate?: { id: string; name: string; employeeCode: string } | null;
+  booking?: {
+    id: string;
+    status: string;
+    panel?: { id: string; name: string } | null;
+    lab?: { id: string; name: string } | null;
+  } | null;
 }
 
 /** Descriptor returned by the upload endpoint for a stored file. */

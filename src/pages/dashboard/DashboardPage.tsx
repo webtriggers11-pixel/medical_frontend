@@ -15,8 +15,10 @@ import { usePagination } from '../../hooks/usePagination';
 import { useCandidates, useSetCandidateApproval } from '../../features/candidates/hooks/useCandidates';
 import { Switch } from '../../components/ui/Switch';
 import { useBookings } from '../../features/booking/hooks/useBookings';
+import { RescheduleModal } from '../../features/booking/components/RescheduleModal';
 import { UploadReportModal } from '../../features/reports/components/UploadReportModal';
-import { STATUS_LABEL, STATUS_VARIANT } from '../../types/booking.types';
+import type { Booking } from '../../types/booking.types';
+import { bookingStatusLabel, bookingStatusVariant } from '../../types/booking.types';
 
 /* ── client (USER) dashboard — dummy data for now ─────────────────────── */
 
@@ -281,6 +283,39 @@ const APPROVE_OPTIONS = [
   { value: 'false', label: 'Not approved' },
 ];
 
+// Booking-status filter buckets (grouped over the raw booking statuses).
+const STATUS_OPTIONS = [
+  { value: ALL, label: 'All statuses' },
+  { value: 'APPT_REQ', label: 'Appointment requested' },
+  { value: 'SCHEDULE', label: 'Scheduled' },
+  { value: 'RESCHEDULE', label: 'Reschedule' },
+  { value: 'REPORT_PENDING', label: 'Report pending' },
+  { value: 'DONE', label: 'Done' },
+];
+
+/** Map a candidate's latest booking (or none) to a status filter bucket. */
+function statusBucket(booking?: { status: string; scheduleHistory?: { id: string }[] }): string {
+  if (!booking) return 'APPT_REQ';
+  const rescheduled = (booking.scheduleHistory?.length ?? 0) > 0;
+  switch (booking.status) {
+    case 'SCHEDULED':
+      return rescheduled ? 'RESCHEDULE' : 'SCHEDULE';
+    case 'CANCELLED':
+      return 'RESCHEDULE';
+    case 'VISITED':
+      return 'REPORT_PENDING';
+    case 'REPORT_UPLOADED':
+    case 'FIT':
+    case 'UNFIT':
+      return 'DONE';
+    case 'APPOINTMENT_REQUESTED':
+    default:
+      // no booking yet, or still an appointment request
+      return 'APPT_REQ';
+  }
+}
+
+
 function AdminDashboard({ firstName }: { firstName: string }) {
   const navigate = useNavigate();
   const { data: candidates, isLoading, error } = useCandidates();
@@ -293,13 +328,14 @@ function AdminDashboard({ firstName }: { firstName: string }) {
   const [fCity, setFCity] = useState(ALL);
   const [fStore, setFStore] = useState(ALL);
   const [fLab, setFLab] = useState(ALL);
+  const [fStatus, setFStatus] = useState(ALL);
   const [fApprove, setFApprove] = useState(ALL);
   const [fDateRange, setFDateRange] = useState<DateRange | undefined>(undefined);
   const [filtersOpen, setFiltersOpen] = useState(true);
 
-  const resetFilters = () => { setFClient(ALL); setFZone(ALL); setFCity(ALL); setFStore(ALL); setFLab(ALL); setFApprove(ALL); setFDateRange(undefined); };
-  const hasFilter = !!(fClient || fZone || fCity || fStore || fLab || fApprove || fDateRange?.from);
-  const activeFilterCount = [fClient, fZone, fCity, fStore, fLab, fApprove].filter(Boolean).length + (fDateRange?.from ? 1 : 0);
+  const resetFilters = () => { setFClient(ALL); setFZone(ALL); setFCity(ALL); setFStore(ALL); setFLab(ALL); setFStatus(ALL); setFApprove(ALL); setFDateRange(undefined); };
+  const hasFilter = !!(fClient || fZone || fCity || fStore || fLab || fStatus || fApprove || fDateRange?.from);
+  const activeFilterCount = [fClient, fZone, fCity, fStore, fLab, fStatus, fApprove].filter(Boolean).length + (fDateRange?.from ? 1 : 0);
 
   /* ── booking map ── */
   const bookingMap = useMemo(() => {
@@ -316,7 +352,9 @@ function AdminDashboard({ firstName }: { firstName: string }) {
   const labOpts = useMemo(() => { const s = new Map<string, string>(); bookings?.forEach((b) => { if (b.lab) s.set(b.lab.id, b.lab.name); }); return [{ value: ALL, label: 'All labs' }, ...Array.from(s, ([v, l]) => ({ value: v, label: l }))]; }, [bookings]);
 
   /* ── filtered list ── */
-  const filtered = useMemo(() => {
+  // Everything except the booking-status filter — so the status breakdown can
+  // always show the count for each bucket within the current scope.
+  const baseFiltered = useMemo(() => {
     if (!candidates) return [];
     return candidates.filter((c) => {
       if (fClient && c.clientId !== fClient) return false;
@@ -336,8 +374,23 @@ function AdminDashboard({ firstName }: { firstName: string }) {
     });
   }, [candidates, bookingMap, fClient, fZone, fCity, fStore, fLab, fApprove, fDateRange]);
 
+  const filtered = useMemo(
+    () => (fStatus ? baseFiltered.filter((c) => statusBucket(bookingMap.get(c.id)) === fStatus) : baseFiltered),
+    [baseFiltered, fStatus, bookingMap],
+  );
+
+  // Count per status bucket (within the non-status filters).
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    baseFiltered.forEach((c) => {
+      const b = statusBucket(bookingMap.get(c.id));
+      counts[b] = (counts[b] ?? 0) + 1;
+    });
+    return counts;
+  }, [baseFiltered, bookingMap]);
+
   const { page, setPage, totalPages, pageItems } = usePagination(filtered, {
-    resetKey: `${fClient}|${fZone}|${fCity}|${fStore}|${fLab}|${fApprove}|${fDateRange?.from?.toISOString() ?? ''}|${fDateRange?.to?.toISOString() ?? ''}`,
+    resetKey: `${fClient}|${fZone}|${fCity}|${fStore}|${fLab}|${fStatus}|${fApprove}|${fDateRange?.from?.toISOString() ?? ''}|${fDateRange?.to?.toISOString() ?? ''}`,
   });
 
   /* ── stats ── */
@@ -346,6 +399,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
   const totalPending = filtered.length - totalBooked;
 
   const [uploadTarget, setUploadTarget] = useState<{ bookingId: string; candidateName: string; tests: string[] } | null>(null);
+  const [rescheduleTarget, setRescheduleTarget] = useState<{ booking: Booking; candidateName: string } | null>(null);
 
   const th = 'text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap';
 
@@ -355,6 +409,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
   const cityLabel = cityOpts.find((o) => o.value === fCity)?.label;
   const storeLabel = storeOpts.find((o) => o.value === fStore)?.label;
   const labLabel = labOpts.find((o) => o.value === fLab)?.label;
+  const statusLabel = STATUS_OPTIONS.find((o) => o.value === fStatus)?.label;
   const approveLabel = APPROVE_OPTIONS.find((o) => o.value === fApprove)?.label;
 
   return (
@@ -382,6 +437,27 @@ function AdminDashboard({ firstName }: { firstName: string }) {
             <StatPill label="Approved" value={totalApproved} color="bg-sky-400/20 text-sky-100" />
           </div>
         </div>
+      </div>
+
+      {/* ── Booking status breakdown (click to filter) ── */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {STATUS_OPTIONS.filter((o) => o.value !== ALL).map((o) => {
+          const active = fStatus === o.value;
+          return (
+            <button
+              key={o.value}
+              onClick={() => setFStatus(active ? ALL : o.value)}
+              className={`rounded-2xl border px-4 py-3 text-left transition-colors ${
+                active
+                  ? 'border-primary-300 bg-primary-50 ring-1 ring-primary-200'
+                  : 'border-border bg-surface hover:bg-slate-50'
+              }`}
+            >
+              <p className="text-2xl font-bold text-slate-900 leading-none">{statusCounts[o.value] ?? 0}</p>
+              <p className={`text-xs font-medium mt-1.5 ${active ? 'text-primary-700' : 'text-slate-500'}`}>{o.label}</p>
+            </button>
+          );
+        })}
       </div>
 
       {/* ── Filters ── */}
@@ -425,6 +501,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
             {fCity && <FilterChip label={`City: ${cityLabel}`} onRemove={() => { setFCity(ALL); setFStore(ALL); }} />}
             {fStore && <FilterChip label={`Store: ${storeLabel}`} onRemove={() => setFStore(ALL)} />}
             {fLab && <FilterChip label={`Lab: ${labLabel}`} onRemove={() => setFLab(ALL)} />}
+            {fStatus && <FilterChip label={`Status: ${statusLabel}`} onRemove={() => setFStatus(ALL)} />}
             {fApprove && <FilterChip label={`Approval: ${approveLabel}`} onRemove={() => setFApprove(ALL)} />}
             {fDateRange?.from && (
               <FilterChip
@@ -447,6 +524,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
               <Combobox options={cityOpts} value={fCity} onChange={(v) => { setFCity(v); setFStore(ALL); }} placeholder="All cities" label="City" disabled={!fZone && cityOpts.length <= 1} />
               <Combobox options={storeOpts} value={fStore} onChange={setFStore} placeholder="All stores" label="Store" />
               <Combobox options={labOpts} value={fLab} onChange={setFLab} placeholder="All labs" label="Lab" />
+              <Combobox options={STATUS_OPTIONS} value={fStatus} onChange={setFStatus} placeholder="All statuses" label="Booking status" />
               <Combobox options={APPROVE_OPTIONS} value={fApprove} onChange={setFApprove} placeholder="All" label="Approve status" />
               <div className="lg:col-span-2">
                 <DateRangePicker label="Appointment date range" value={fDateRange} onChange={setFDateRange} placeholder="All dates" />
@@ -497,7 +575,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
         {!isLoading && !error && filtered.length > 0 && (
           <div className="overflow-x-auto">
             <div className="max-h-[calc(100vh-360px)] overflow-y-auto">
-              <table className="w-full text-sm">
+              <table className="w-max min-w-full text-sm">
                 <thead className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-border">
                   <tr>
                     <th className={th}>Candidate</th>
@@ -530,7 +608,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-2.5">
                             <Avatar name={c.name} size="sm" />
-                            <div className="min-w-0">
+                            <div className="min-w-0 max-w-[200px]">
                               <p className="font-semibold text-slate-900 truncate leading-tight">{c.name}</p>
                               <p className="text-[11px] text-slate-400 truncate mt-0.5">{c.email}</p>
                             </div>
@@ -538,7 +616,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
                         </td>
 
                         {/* Emp code */}
-                        <td className="px-4 py-3.5">
+                        <td className="px-4 py-3.5 whitespace-nowrap">
                           <span className="font-mono text-xs text-slate-600 bg-slate-100 px-2 py-0.5 rounded">{c.employeeCode}</span>
                         </td>
 
@@ -546,12 +624,12 @@ function AdminDashboard({ firstName }: { firstName: string }) {
                         <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap text-xs">{c.mobile}</td>
 
                         {/* Gender */}
-                        <td className="px-4 py-3.5">
+                        <td className="px-4 py-3.5 whitespace-nowrap">
                           <Badge variant="default" size="sm">{c.gender.toLowerCase()}</Badge>
                         </td>
 
                         {/* Type */}
-                        <td className="px-4 py-3.5">
+                        <td className="px-4 py-3.5 whitespace-nowrap">
                           <Badge variant="primary" size="sm">{c.candidateType.replace('_', ' ').toLowerCase()}</Badge>
                         </td>
 
@@ -575,16 +653,24 @@ function AdminDashboard({ firstName }: { firstName: string }) {
                           {new Date(c.doj).toLocaleDateString('en-IN')}
                         </td>
 
-                        {/* Appointment + Book */}
+                        {/* Appointment + Book / Reschedule */}
                         <td className="px-4 py-3.5 whitespace-nowrap">
                           {c.appointmentDate && (
                             <p className="text-[11px] font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full inline-block mb-1.5">
                               {new Date(c.appointmentDate).toLocaleDateString('en-IN')}
                             </p>
                           )}
-                          <Button size="sm" onClick={() => navigate('/admin/book-lab', {
-                            state: { candidateId: c.id, clientId: c.clientId, storeId: c.storeId },
-                          })}>Book</Button>
+                          {booking?.status === 'SCHEDULED' ? (
+                            <Button size="sm" variant="outline" onClick={() => setRescheduleTarget({ booking, candidateName: c.name })}>
+                              Reschedule
+                            </Button>
+                          ) : !booking || booking.status === 'APPOINTMENT_REQUESTED' || booking.status === 'CANCELLED' ? (
+                            <Button size="sm" onClick={() => navigate('/admin/book-lab', {
+                              state: { candidateId: c.id, clientId: c.clientId, storeId: c.storeId },
+                            })}>Book</Button>
+                          ) : (
+                            <span className="text-slate-300 text-xs">—</span>
+                          )}
                         </td>
 
                         {/* Visit time */}
@@ -616,21 +702,26 @@ function AdminDashboard({ firstName }: { firstName: string }) {
                         </td>
 
                         {/* Lab booked */}
-                        <td className="px-4 py-3.5 whitespace-nowrap">
+                        <td className="px-4 py-3.5">
                           {booking?.lab ? (
                             <div>
-                              <p className="text-xs font-semibold text-slate-800">{booking.lab.name}</p>
+                              <p className="text-xs font-semibold text-slate-800 whitespace-nowrap">{booking.lab.name}</p>
                               {booking.lab.contactMobile && (
-                                <p className="text-[11px] text-slate-400 mt-0.5">{booking.lab.contactMobile}</p>
+                                <p className="text-[11px] text-slate-400 mt-0.5 whitespace-nowrap">{booking.lab.contactMobile}</p>
+                              )}
+                              {booking.lab.address && (
+                                <p className="text-[11px] text-slate-400 mt-0.5 max-w-[200px] leading-snug" title={`${booking.lab.address}${booking.lab.pincode ? ` – ${booking.lab.pincode}` : ''}`}>
+                                  {booking.lab.address}{booking.lab.pincode ? ` – ${booking.lab.pincode}` : ''}
+                                </p>
                               )}
                             </div>
                           ) : <span className="text-slate-300 text-xs">—</span>}
                         </td>
 
                         {/* Booking status */}
-                        <td className="px-4 py-3.5">
-                          <Badge variant={booking ? STATUS_VARIANT[booking.status] : 'warning'} size="sm">
-                            {booking ? STATUS_LABEL[booking.status] : 'Pending'}
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          <Badge variant={booking ? bookingStatusVariant(booking) : 'warning'} size="sm">
+                            {!booking ? 'Appointment requested' : bookingStatusLabel(booking)}
                           </Badge>
                         </td>
 
@@ -691,6 +782,15 @@ function AdminDashboard({ firstName }: { firstName: string }) {
           bookingId={uploadTarget.bookingId}
           candidateName={uploadTarget.candidateName}
           tests={uploadTarget.tests}
+        />
+      )}
+
+      {rescheduleTarget && (
+        <RescheduleModal
+          open={!!rescheduleTarget}
+          onClose={() => setRescheduleTarget(null)}
+          booking={rescheduleTarget.booking}
+          candidateName={rescheduleTarget.candidateName}
         />
       )}
     </div>

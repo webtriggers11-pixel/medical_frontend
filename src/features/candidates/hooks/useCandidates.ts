@@ -2,10 +2,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { candidatesService } from '../../../services/candidates.service';
 import { queryKeys } from '../../../api/queryKeys';
 
-export const useCandidates = () =>
+export const useCandidates = (params?: {
+  clientId?: string;
+  storeId?: string;
+  available?: boolean;
+}) =>
   useQuery({
-    queryKey: queryKeys.candidates.all,
-    queryFn: candidatesService.getAll,
+    queryKey: params
+      ? [...queryKeys.candidates.all, params]
+      : queryKeys.candidates.all,
+    queryFn: () => candidatesService.getAll(params),
   });
 
 export const useSetCandidateApproval = () => {

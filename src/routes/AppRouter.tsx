@@ -20,6 +20,7 @@ import { PanelsPage } from '../pages/admin/PanelsPage';
 import { CandidatesPage } from '../pages/candidates/CandidatesPage';
 import { CandidateDetailPage } from '../pages/candidates/CandidateDetailPage';
 import { AddCandidatePage } from '../pages/candidates/AddCandidatePage';
+import { ReportsPage } from '../pages/reports/ReportsPage';
 import { ROLE_GROUPS } from '../config/roles';
 import { UnauthorizedPage } from '../pages/UnauthorizedPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
@@ -62,6 +63,7 @@ export const AppRouter = () => (
             <Route path="/candidates/:id" element={<CandidateDetailPage />} />
             <Route path="/stores" element={<StoresPage />} />
             <Route path="/stores/new" element={<AddStorePage />} />
+            <Route path="/reports" element={<ReportsPage />} />
           </Route>
         </Route>
       </Route>

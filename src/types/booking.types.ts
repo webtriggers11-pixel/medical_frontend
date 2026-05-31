@@ -52,6 +52,17 @@ export interface Booking {
     name: string | null;
     email: string;
   };
+  scheduleHistory?: BookingScheduleChange[];
+}
+
+export interface BookingScheduleChange {
+  id: string;
+  previousDate: string | null;
+  previousTimeSlot: string | null;
+  newDate: string | null;
+  newTimeSlot: string | null;
+  reason: string | null;
+  createdAt: string;
 }
 
 // A candidate awaiting booking — has appointmentDate, no booking yet.
@@ -80,6 +91,12 @@ export interface UpdateBookingStatusInput {
   status: BookingStatus;
   scheduledDate?: string;
   timeSlot?: string;
+}
+
+export interface RescheduleBookingInput {
+  scheduledDate: string;
+  timeSlot?: string;
+  reason?: string;
 }
 
 export const TIME_SLOTS = [
@@ -111,3 +128,30 @@ export const STATUS_VARIANT: Record<BookingStatus, 'default' | 'primary' | 'succ
   UNFIT: 'danger',
   CANCELLED: 'default',
 };
+
+type BookingStatusBadge = 'default' | 'primary' | 'success' | 'warning' | 'danger' | 'info';
+
+/** True when a SCHEDULED booking has been rescheduled at least once. */
+export function isRescheduled(
+  booking?: { status: BookingStatus; scheduleHistory?: { id: string }[] } | null,
+): boolean {
+  return (
+    !!booking &&
+    booking.status === 'SCHEDULED' &&
+    (booking.scheduleHistory?.length ?? 0) > 0
+  );
+}
+
+/** Display label for a booking — "Rescheduled" for rescheduled bookings, else the raw status label. */
+export function bookingStatusLabel(
+  booking: { status: BookingStatus; scheduleHistory?: { id: string }[] },
+): string {
+  return isRescheduled(booking) ? 'Rescheduled' : STATUS_LABEL[booking.status];
+}
+
+/** Badge variant for a booking — distinct colour for rescheduled, else the raw status variant. */
+export function bookingStatusVariant(
+  booking: { status: BookingStatus; scheduleHistory?: { id: string }[] },
+): BookingStatusBadge {
+  return isRescheduled(booking) ? 'warning' : STATUS_VARIANT[booking.status];
+}

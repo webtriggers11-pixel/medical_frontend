@@ -56,44 +56,115 @@ export function PanelsPage() {
       {filtered && filtered.length > 0 && (
         <Card padding="none">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-max min-w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-slate-50/60">
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Panel</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Lab / Tests</th>
-                  <th className="text-right px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">MRP</th>
-                  <th className="text-right px-5 py-3.5 text-xs font-semibold text-orange-600 uppercase tracking-wider">Vendor cost</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Panel</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Timing</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Lab</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Lab contact</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Service cities</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Bundled test</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Tests included</th>
+                  <th className="text-right px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">MRP</th>
+                  <th className="text-right px-5 py-3.5 text-xs font-semibold text-orange-600 uppercase tracking-wider whitespace-nowrap">Vendor cost</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Client pricing</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Status</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Created</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {pageItems.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
+                  <tr key={p.id} className="hover:bg-slate-50/50 transition-colors align-top">
+                    {/* Panel name */}
                     <td className="px-5 py-4">
-                      <p className="font-semibold text-slate-900">{p.name}</p>
-                      {p.timing && <p className="text-xs text-slate-400 mt-0.5">{p.timing}</p>}
+                      <p className="font-semibold text-slate-900 whitespace-nowrap">{p.name}</p>
                     </td>
+                    {/* Timing */}
+                    <td className="px-5 py-4 text-slate-600 whitespace-nowrap">{p.timing || '—'}</td>
+                    {/* Lab + address */}
                     <td className="px-5 py-4">
-                      <p className="text-slate-700 text-sm">{p.lab?.name ?? '—'}</p>
-                      <div className="flex flex-wrap gap-1 mt-1 max-w-[200px]">
-                        {(p.bundledTest?.testsIncluded ?? []).slice(0, 3).map((t) => (
-                          <Badge key={t} size="sm" variant="default">{t}</Badge>
-                        ))}
-                        {(p.bundledTest?.testsIncluded?.length ?? 0) > 3 && (
-                          <Badge size="sm" variant="default">+{(p.bundledTest?.testsIncluded?.length ?? 0) - 3}</Badge>
-                        )}
-                      </div>
+                      <p className="text-slate-700 whitespace-nowrap">{p.lab?.name ?? '—'}</p>
+                      {p.lab?.address && (
+                        <p
+                          className="text-xs text-slate-400 mt-0.5 max-w-[200px] leading-snug line-clamp-2"
+                          title={`${p.lab.address}${p.lab.pincode ? ` – ${p.lab.pincode}` : ''}`}
+                        >
+                          {p.lab.address}{p.lab.pincode ? ` – ${p.lab.pincode}` : ''}
+                        </p>
+                      )}
                     </td>
-                    <td className="px-5 py-4 text-right font-medium text-slate-700">
+                    {/* Lab contact */}
+                    <td className="px-5 py-4 text-slate-600 whitespace-nowrap">{p.labContact || '—'}</td>
+                    {/* Service cities */}
+                    <td className="px-5 py-4">
+                      {p.lab?.serviceCities?.length ? (
+                        <div className="flex flex-wrap items-center gap-1 max-w-[180px]">
+                          {p.lab.serviceCities.slice(0, 3).map((c) => (
+                            <Badge key={c} size="sm" variant="default">{c}</Badge>
+                          ))}
+                          {p.lab.serviceCities.length > 3 && (
+                            <span className="text-xs text-slate-400" title={p.lab.serviceCities.join(', ')}>
+                              +{p.lab.serviceCities.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      ) : '—'}
+                    </td>
+                    {/* Bundled test name */}
+                    <td className="px-5 py-4 text-slate-700">{p.bundledTest?.name ?? '—'}</td>
+                    {/* Tests included — truncated */}
+                    <td className="px-5 py-4">
+                      {p.bundledTest?.testsIncluded?.length ? (
+                        <div className="flex flex-wrap items-center gap-1 max-w-[220px]">
+                          {p.bundledTest.testsIncluded.slice(0, 4).map((t) => (
+                            <Badge key={t} size="sm" variant="default">{t}</Badge>
+                          ))}
+                          {p.bundledTest.testsIncluded.length > 4 && (
+                            <span className="text-xs text-slate-400" title={p.bundledTest.testsIncluded.join(', ')}>
+                              +{p.bundledTest.testsIncluded.length - 4}
+                            </span>
+                          )}
+                        </div>
+                      ) : '—'}
+                    </td>
+                    {/* MRP */}
+                    <td className="px-5 py-4 text-right font-medium text-slate-700 whitespace-nowrap">
                       {fmt(Number(p.mrp))}
                     </td>
-                    <td className="px-5 py-4 text-right font-semibold text-orange-600">
+                    {/* Vendor cost */}
+                    <td className="px-5 py-4 text-right font-semibold text-orange-600 whitespace-nowrap">
                       {fmt(Number(p.costToVendor))}
                     </td>
+                    {/* Client pricing */}
+                    <td className="px-5 py-4">
+                      {p.clientPricing?.length ? (
+                        <div className="space-y-1 max-w-[240px]">
+                          {p.clientPricing.slice(0, 2).map((cp) => (
+                            <div key={cp.id} className="text-xs text-slate-600 truncate" title={`${cp.client?.name ?? cp.client?.email ?? 'Client'}: ${fmt(Number(cp.costToClient))}`}>
+                              <span className="font-medium text-slate-700">{cp.client?.name ?? cp.client?.email ?? 'Client'}</span>
+                              {': '}
+                              {fmt(Number(cp.costToClient))}
+                              {cp.discountAfterN > 0 && (
+                                <span className="text-emerald-600"> · {fmt(Number(cp.discountedPrice))} after {cp.discountAfterN}</span>
+                              )}
+                            </div>
+                          ))}
+                          {p.clientPricing.length > 2 && (
+                            <span className="text-xs text-slate-400">+{p.clientPricing.length - 2} more</span>
+                          )}
+                        </div>
+                      ) : <span className="text-xs text-slate-400">No client pricing</span>}
+                    </td>
+                    {/* Status */}
                     <td className="px-5 py-4">
                       <Badge variant={p.status === 'ACTIVE' ? 'success' : 'default'} size="sm">
                         {p.status.toLowerCase()}
                       </Badge>
+                    </td>
+                    {/* Created */}
+                    <td className="px-5 py-4 text-slate-500 text-xs whitespace-nowrap">
+                      {new Date(p.createdAt).toLocaleDateString('en-IN')}
                     </td>
                   </tr>
                 ))}

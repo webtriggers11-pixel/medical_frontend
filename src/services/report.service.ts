@@ -24,6 +24,11 @@ export const reportService = {
     return res.data.data;
   },
 
+  getAll: async (): Promise<Report[]> => {
+    const res = await api.get<ApiResponse<Report[]>>('/reports');
+    return res.data.data;
+  },
+
   getByCandidate: async (candidateId: string): Promise<Report[]> => {
     const res = await api.get<ApiResponse<Report[]>>(`/reports/candidate/${candidateId}`);
     return res.data.data;

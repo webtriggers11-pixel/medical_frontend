@@ -354,6 +354,7 @@ export function StoresPage() {
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Code</th>
                   {isAdmin && <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Client</th>}
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">City / Zone</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Address</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Store Head</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Created</th>
@@ -374,6 +375,9 @@ export function StoresPage() {
                     <td className="px-5 py-3.5 text-slate-600">
                       <div>{s.city?.name ?? '—'}</div>
                       <div className="text-xs text-slate-400">{s.city?.zone?.name ?? '—'}</div>
+                    </td>
+                    <td className="px-5 py-3.5 text-slate-600">
+                      <div className="max-w-[220px] whitespace-normal leading-snug">{s.address || '—'}</div>
                     </td>
                     <td className="px-5 py-3.5 text-slate-600">
                       <div>{s.storeHeadName}</div>

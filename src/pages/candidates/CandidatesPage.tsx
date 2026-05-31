@@ -15,7 +15,7 @@ import { Pagination } from '../../components/ui/Pagination';
 import { usePagination } from '../../hooks/usePagination';
 import { format } from 'date-fns';
 import type { CandidateType } from '../../types/candidate.types';
-import { STATUS_LABEL, STATUS_VARIANT } from '../../types/booking.types';
+import { bookingStatusLabel, bookingStatusVariant } from '../../types/booking.types';
 import type { Booking } from '../../types/booking.types';
 
 const typeVariant: Record<CandidateType, 'primary' | 'success' | 'warning'> = {
@@ -226,7 +226,7 @@ export function CandidatesPage() {
                         </td>
                         <td className="px-5 py-3.5">
                           {isBooked ? (
-                            <Badge variant={STATUS_VARIANT[booking.status]} size="sm">{STATUS_LABEL[booking.status]}</Badge>
+                            <Badge variant={bookingStatusVariant(booking)} size="sm">{bookingStatusLabel(booking)}</Badge>
                           ) : c.appointmentDate ? (
                             <Badge variant="warning" size="sm">Requested</Badge>
                           ) : (
@@ -310,10 +310,7 @@ export function CandidatesPage() {
                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                     Status
                                   </p>
-                                  <Badge variant={STATUS_VARIANT[booking.status]} size="sm">{STATUS_LABEL[booking.status]}</Badge>
-                                  {booking.amountCharged != null && (
-                                    <p className="mt-1.5 text-xs text-slate-500">Charged: <span className="font-semibold text-slate-700">₹{Number(booking.amountCharged).toLocaleString('en-IN')}</span></p>
-                                  )}
+                                  <Badge variant={bookingStatusVariant(booking)} size="sm">{bookingStatusLabel(booking)}</Badge>
                                 </div>
                               </div>
                             </div>

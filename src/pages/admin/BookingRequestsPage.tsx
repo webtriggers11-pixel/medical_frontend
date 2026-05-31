@@ -92,9 +92,16 @@ function BookNowModal({ request, open, onClose }: { request: BookingRequest; ope
 
         {selectedPanel && (
           <div className="rounded-xl border border-border bg-white p-4 space-y-2 text-sm">
-            <div className="flex justify-between">
+            <div className="flex justify-between gap-3">
               <span className="text-slate-500">Lab</span>
-              <span className="font-medium text-slate-800">{selectedPanel.lab?.name ?? '—'}</span>
+              <span className="font-medium text-slate-800 text-right">
+                {selectedPanel.lab?.name ?? '—'}
+                {selectedPanel.lab?.address && (
+                  <span className="block text-xs font-normal text-slate-400 leading-snug">
+                    {selectedPanel.lab.address}{selectedPanel.lab.pincode ? ` – ${selectedPanel.lab.pincode}` : ''}
+                  </span>
+                )}
+              </span>
             </div>
             {selectedPanel.bundledTest?.testsIncluded && (
               <div className="flex flex-wrap gap-1">

@@ -16,6 +16,7 @@ export const useCreateReport = () => {
     mutationFn: (input: CreateReportInput) => reportService.create(input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.bookings.all });
+      qc.invalidateQueries({ queryKey: queryKeys.reports.all });
     },
   });
 };

@@ -7,8 +7,18 @@ import type {
 } from '../types/candidate.types';
 
 export const candidatesService = {
-  getAll: async (): Promise<Candidate[]> => {
-    const res = await api.get<ApiResponse<Candidate[]>>('/candidates');
+  getAll: async (params?: {
+    clientId?: string;
+    storeId?: string;
+    available?: boolean;
+  }): Promise<Candidate[]> => {
+    const res = await api.get<ApiResponse<Candidate[]>>('/candidates', {
+      params: {
+        clientId: params?.clientId,
+        storeId: params?.storeId,
+        available: params?.available ? 'true' : undefined,
+      },
+    });
     return res.data.data;
   },
 
@@ -22,10 +32,9 @@ export const candidatesService = {
     return res.data.data;
   },
 
-  bulkUpload: async (file: File, storeId: string): Promise<BulkUploadResult> => {
+  bulkUpload: async (file: File): Promise<BulkUploadResult> => {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('storeId', storeId);
     const res = await api.post<ApiResponse<BulkUploadResult>>(
       '/candidates/bulk',
       formData,

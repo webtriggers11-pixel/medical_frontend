@@ -36,6 +36,7 @@ export const queryKeys = {
     byId: (id: string) => ['bookings', id] as const,
   },
   reports: {
+    all: ['reports'] as const,
     byCandidate: (candidateId: string) => ['reports', 'candidate', candidateId] as const,
     byBooking: (bookingId: string) => ['reports', 'booking', bookingId] as const,
   },

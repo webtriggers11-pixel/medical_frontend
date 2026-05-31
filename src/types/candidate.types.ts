@@ -23,6 +23,9 @@ export interface Candidate {
     id: string;
     name: string;
     storeCode: string;
+    address?: string | null;
+    storeHeadName?: string | null;
+    storeHeadMobile?: string | null;
     city?: { id: string; name: string; zone?: { id: string; name: string } | null } | null;
   } | null;
   client?: { id: string; name: string | null; email: string } | null;

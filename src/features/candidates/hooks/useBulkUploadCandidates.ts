@@ -6,8 +6,8 @@ export const useBulkUploadCandidates = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ file, storeId }: { file: File; storeId: string }) =>
-      candidatesService.bulkUpload(file, storeId),
+    mutationFn: ({ file }: { file: File }) =>
+      candidatesService.bulkUpload(file),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.candidates.all });
     },

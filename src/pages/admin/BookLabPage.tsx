@@ -92,7 +92,13 @@ export function BookLabPage() {
   const { candidateId, clientId, storeId } = state ?? {};
 
   /* data */
-  const { data: allCandidates, isLoading: candidatesLoading } = useCandidates();
+  // Backend returns only "requested" candidates (active, with an appointment,
+  // not yet booked) scoped to this client + store.
+  const { data: storeCandidates = [], isLoading: candidatesLoading } = useCandidates({
+    clientId,
+    storeId,
+    available: true,
+  });
   const { data: client, isLoading: clientLoading } = useClientById(clientId ?? '');
   const { data: allPanels, isLoading: panelsLoading } = useQuery({
     queryKey: [...queryKeys.panels.all, 'book-lab'],
@@ -107,9 +113,10 @@ export function BookLabPage() {
 
   /* derived */
   const store = useMemo(() => allStores?.find((s) => s.id === storeId), [allStores, storeId]);
-  const storeCandidates = useMemo(
-    () => allCandidates?.filter((c) => c.clientId === clientId && c.storeId === storeId && c.isActive) ?? [],
-    [allCandidates, clientId, storeId],
+  // Only panels assigned to the selected client (those with client-specific pricing).
+  const clientPanels = useMemo(
+    () => allPanels?.filter((p) => p.clientPricing?.some((cp) => cp.clientId === clientId)) ?? [],
+    [allPanels, clientId],
   );
 
   /* selection */
@@ -132,7 +139,7 @@ export function BookLabPage() {
 
   /* panel pagination */
   const { page: panelPage, setPage: setPanelPage, totalPages: panelTotalPages, pageItems: panelItems } =
-    usePagination(allPanels ?? [], { resetKey: allPanels?.length });
+    usePagination(clientPanels, { resetKey: clientPanels.length });
 
   const openPanels = () => {
     setShowPanels(true);
@@ -477,7 +484,7 @@ export function BookLabPage() {
                 <div>
                   <p className="font-semibold text-slate-900">Available Panels</p>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    {allPanels?.length ?? 0} panels · booking for{' '}
+                    {clientPanels.length} panels · booking for{' '}
                     <span className="font-semibold text-primary-600">{selectedCandidates.length} candidate{selectedCandidates.length !== 1 ? 's' : ''}</span>
                   </p>
                 </div>
@@ -518,10 +525,10 @@ export function BookLabPage() {
                   <div key={i} className="h-14 rounded-xl bg-slate-50 animate-pulse border border-border" />
                 ))}
               </div>
-            ) : !allPanels?.length ? (
+            ) : !clientPanels.length ? (
               <div className="py-14 text-center">
-                <p className="text-sm font-medium text-slate-500">No panels created yet.</p>
-                <p className="text-xs text-slate-400 mt-1">Add panels from the Panels page first.</p>
+                <p className="text-sm font-medium text-slate-500">No panels assigned to this client.</p>
+                <p className="text-xs text-slate-400 mt-1">Set client pricing on a panel from the Panels page first.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">

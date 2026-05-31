@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useCandidates } from '../../features/candidates/hooks/useCandidates';
 import { useBookings } from '../../features/booking/hooks/useBookings';
+import { RescheduleModal } from '../../features/booking/components/RescheduleModal';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Avatar } from '../../components/ui/Avatar';
@@ -9,7 +11,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { format } from 'date-fns';
 import type { CandidateType } from '../../types/candidate.types';
-import { STATUS_LABEL, STATUS_VARIANT } from '../../types/booking.types';
+import { bookingStatusLabel, bookingStatusVariant } from '../../types/booking.types';
 
 const typeVariant: Record<CandidateType, 'primary' | 'success' | 'warning'> = {
   NEW_JOINER: 'success',
@@ -55,6 +57,7 @@ function SectionCard({ title, icon, children }: { title: string; icon: React.Rea
 export function CandidateDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [rescheduling, setRescheduling] = useState(false);
 
   const { data: candidates, isLoading } = useCandidates();
   const { data: bookings } = useBookings();
@@ -91,6 +94,16 @@ export function CandidateDetailPage() {
 
   const isBooked = !!booking;
 
+  // Once the scheduled date has passed (and it's still just SCHEDULED), the
+  // client can request a reschedule from their own panel.
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const schedulePassed =
+    !!booking &&
+    booking.status === 'SCHEDULED' &&
+    !!booking.scheduledDate &&
+    new Date(booking.scheduledDate) < startOfToday;
+
   return (
     <div className="space-y-5 animate-fade-in">
       <Button variant="ghost" size="sm" icon={BackIcon} onClick={() => navigate('/candidates')}>
@@ -108,7 +121,7 @@ export function CandidateDetailPage() {
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Badge variant={typeVariant[candidate.candidateType]} size="sm">{typeLabel[candidate.candidateType]}</Badge>
                 {isBooked ? (
-                  <Badge variant={STATUS_VARIANT[booking.status]} size="sm">{STATUS_LABEL[booking.status]}</Badge>
+                  <Badge variant={bookingStatusVariant(booking)} size="sm">{bookingStatusLabel(booking)}</Badge>
                 ) : candidate.appointmentDate ? (
                   <Badge variant="warning" size="sm">Requested</Badge>
                 ) : (
@@ -158,6 +171,17 @@ export function CandidateDetailPage() {
             <Field label="Store Code" value={candidate.store?.storeCode} />
             <Field label="City" value={candidate.store?.city?.name} />
             <Field label="Zone" value={candidate.store?.city?.zone?.name} />
+            <div className="col-span-2 sm:col-span-3">
+              <Field label="Address" value={candidate.store?.address || '—'} />
+            </div>
+            <Field
+              label="Store Head"
+              value={
+                candidate.store?.storeHeadName
+                  ? `${candidate.store.storeHeadName}${candidate.store.storeHeadMobile ? ` · ${candidate.store.storeHeadMobile}` : ''}`
+                  : '—'
+              }
+            />
           </div>
         </SectionCard>
       </div>
@@ -168,6 +192,15 @@ export function CandidateDetailPage() {
         icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>}
       >
         {isBooked ? (
+          <>
+          {schedulePassed && (
+            <div className="mb-4 flex flex-col gap-3 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-amber-700">
+                The scheduled appointment date has passed. You can reschedule this appointment.
+              </p>
+              <Button size="sm" onClick={() => setRescheduling(true)}>Reschedule</Button>
+            </div>
+          )}
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-primary-500 mb-1">Panel</p>
@@ -195,13 +228,34 @@ export function CandidateDetailPage() {
             </div>
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-primary-500 mb-1">Status</p>
-              <Badge variant={STATUS_VARIANT[booking.status]} size="sm">{STATUS_LABEL[booking.status]}</Badge>
-              {booking.amountCharged != null && (
-                <p className="mt-1.5 text-xs text-slate-500">Charged: <span className="font-semibold text-slate-700">₹{Number(booking.amountCharged).toLocaleString('en-IN')}</span></p>
-              )}
-              <p className="mt-1 text-xs text-slate-500">Requested: {fmtDate(booking.reqDate)}</p>
+              <Badge variant={bookingStatusVariant(booking)} size="sm">{bookingStatusLabel(booking)}</Badge>
+              <p className="mt-1.5 text-xs text-slate-500">Requested: {fmtDate(booking.reqDate)}</p>
             </div>
           </div>
+
+          {(booking.scheduleHistory?.length ?? 0) > 0 && (
+            <div className="mt-5 border-t border-border pt-4">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-primary-500 mb-2">Reschedule history</p>
+              <ol className="space-y-2">
+                {booking.scheduleHistory!.map((h) => (
+                  <li key={h.id} className="flex items-start gap-2 text-sm">
+                    <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary-400 shrink-0" />
+                    <div>
+                      <p className="text-slate-700">
+                        {h.previousDate ? fmtDate(h.previousDate) : '—'}{h.previousTimeSlot ? ` · ${h.previousTimeSlot}` : ''}
+                        <span className="text-slate-400"> → </span>
+                        <span className="font-medium">{h.newDate ? fmtDate(h.newDate) : '—'}{h.newTimeSlot ? ` · ${h.newTimeSlot}` : ''}</span>
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        Changed {fmtDate(h.createdAt)}{h.reason ? ` · ${h.reason}` : ''}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+          </>
         ) : (
           <EmptyState
             icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>}
@@ -210,6 +264,15 @@ export function CandidateDetailPage() {
           />
         )}
       </SectionCard>
+
+      {booking && rescheduling && (
+        <RescheduleModal
+          open={rescheduling}
+          onClose={() => setRescheduling(false)}
+          booking={booking}
+          candidateName={candidate.name}
+        />
+      )}
     </div>
   );
 }

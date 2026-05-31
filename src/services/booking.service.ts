@@ -1,6 +1,6 @@
 import api from '../api/axios.instance';
 import type { ApiResponse } from '../types/auth.types';
-import type { Booking, BookingRequest, CreateBookingInput, UpdateBookingStatusInput } from '../types/booking.types';
+import type { Booking, BookingRequest, CreateBookingInput, UpdateBookingStatusInput, RescheduleBookingInput } from '../types/booking.types';
 
 export const bookingService = {
   // Admin — candidates awaiting booking
@@ -27,6 +27,11 @@ export const bookingService = {
 
   updateStatus: async (id: string, input: UpdateBookingStatusInput): Promise<Booking> => {
     const res = await api.patch<ApiResponse<Booking>>(`/bookings/${id}/status`, input);
+    return res.data.data;
+  },
+
+  reschedule: async (id: string, input: RescheduleBookingInput): Promise<Booking> => {
+    const res = await api.patch<ApiResponse<Booking>>(`/bookings/${id}/reschedule`, input);
     return res.data.data;
   },
 };

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../../api/queryKeys';
 import { bookingService } from '../../../services/booking.service';
-import type { CreateBookingInput, UpdateBookingStatusInput } from '../../../types/booking.types';
+import type { CreateBookingInput, UpdateBookingStatusInput, RescheduleBookingInput } from '../../../types/booking.types';
 
 export const useBookings = (params?: { status?: string; clientId?: string }) =>
   useQuery({
@@ -36,6 +36,18 @@ export const useUpdateBookingStatus = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.bookings.all });
       qc.invalidateQueries({ queryKey: queryKeys.bookings.pending });
+    },
+  });
+};
+
+// Admin — reschedule a booking (keeps a history of the previous schedule)
+export const useRescheduleBooking = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: RescheduleBookingInput }) =>
+      bookingService.reschedule(id, input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.bookings.all });
     },
   });
 };

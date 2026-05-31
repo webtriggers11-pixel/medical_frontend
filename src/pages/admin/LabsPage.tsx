@@ -490,6 +490,7 @@ export function LabsPage() {
               <thead>
                 <tr className="border-b border-border">
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Lab</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Address</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Contact</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Email</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Bundled tests</th>
@@ -502,6 +503,13 @@ export function LabsPage() {
                   <tr key={l.id} className="group hover:bg-slate-50/70 transition-colors">
                     <td className="px-5 py-3.5">
                       <p className="font-medium text-slate-900">{l.name}</p>
+                    </td>
+                    <td className="px-5 py-3.5 text-slate-600">
+                      {l.address ? (
+                        <p className="max-w-[240px] whitespace-normal leading-snug">
+                          {l.address}{l.pincode ? ` – ${l.pincode}` : ''}
+                        </p>
+                      ) : '—'}
                     </td>
                     <td className="px-5 py-3.5">
                       <p className="text-slate-800">{l.contactName}</p>
@@ -551,7 +559,7 @@ export function LabsPage() {
         </Card>
       )}
 
-      <LabModal open={modalOpen} onClose={handleClose} editing={editing} />
+      <LabModal key={editing?.id ?? 'new'} open={modalOpen} onClose={handleClose} editing={editing} />
 
       {bundledTestsLab && (
         <BundledTestsModal
