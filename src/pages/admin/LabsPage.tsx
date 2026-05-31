@@ -14,6 +14,8 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Pagination } from '../../components/ui/Pagination';
+import { usePagination } from '../../hooks/usePagination';
 import { getApiErrorMessage } from '../../lib/apiError';
 import type { Lab, CreateLabInput, BundledTest, CreateBundledTestInput, UpdateBundledTestInput } from '../../types/lab.types';
 
@@ -445,6 +447,10 @@ export function LabsPage() {
     return l.name.toLowerCase().includes(q) || l.email.toLowerCase().includes(q) || l.contactName.toLowerCase().includes(q);
   });
 
+  const { page, setPage, totalPages, pageItems } = usePagination(filtered ?? [], {
+    resetKey: `${search}`,
+  });
+
   const handleEdit = (l: Lab) => { setEditing(l); setModalOpen(true); };
   const handleClose = () => { setEditing(null); setModalOpen(false); };
 
@@ -492,7 +498,7 @@ export function LabsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filtered.map((l) => (
+                {pageItems.map((l) => (
                   <tr key={l.id} className="group hover:bg-slate-50/70 transition-colors">
                     <td className="px-5 py-3.5">
                       <p className="font-medium text-slate-900">{l.name}</p>
@@ -526,6 +532,11 @@ export function LabsPage() {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="flex justify-end px-5 py-3 border-t border-border">
+              <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+            </div>
+          )}
         </Card>
       )}
 

@@ -17,6 +17,8 @@ import { Modal } from '../../components/ui/Modal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Pagination } from '../../components/ui/Pagination';
+import { usePagination } from '../../hooks/usePagination';
 import { getApiErrorMessage } from '../../lib/apiError';
 import type { CreateClientInput, UserRecord } from '../../types/user.types';
 
@@ -120,6 +122,8 @@ export function ClientsPage() {
     );
   });
 
+  const { page, setPage, totalPages, pageItems } = usePagination(filtered ?? [], { resetKey: search });
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -161,7 +165,7 @@ export function ClientsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filtered.map((client) => (
+                {pageItems.map((client) => (
                   <tr
                     key={client.id}
                     className="group hover:bg-slate-50/70 transition-colors cursor-pointer"
@@ -213,6 +217,11 @@ export function ClientsPage() {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="flex justify-end px-5 py-3 border-t border-border">
+              <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+            </div>
+          )}
         </Card>
       )}
 

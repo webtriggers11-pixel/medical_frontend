@@ -16,6 +16,8 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Pagination } from '../../components/ui/Pagination';
+import { usePagination } from '../../hooks/usePagination';
 import { getApiErrorMessage } from '../../lib/apiError';
 import type { StoreWithLocation } from '../../types/org.types';
 
@@ -259,6 +261,10 @@ export function StoresPage() {
     });
   }, [stores, selectedZoneId, selectedCityId, search]);
 
+  const { page, setPage, totalPages, pageItems } = usePagination(filtered ?? [], {
+    resetKey: `${selectedZoneId}|${selectedCityId}|${search}`,
+  });
+
   const hasFilters = !!selectedZoneId || !!selectedCityId || !!search;
   const clearFilters = () => { setSelectedZoneId(''); setSelectedCityId(''); setSearch(''); };
 
@@ -355,7 +361,7 @@ export function StoresPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filtered.map((s) => (
+                {pageItems.map((s) => (
                   <tr key={s.id} className="group hover:bg-slate-50/70 transition-colors">
                     <td className="px-5 py-3.5 font-medium text-slate-900">{s.name}</td>
                     <td className="px-5 py-3.5 text-slate-500 font-mono text-xs">{s.storeCode}</td>
@@ -395,6 +401,11 @@ export function StoresPage() {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="flex justify-end px-5 py-3 border-t border-border">
+              <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+            </div>
+          )}
         </Card>
       )}
 

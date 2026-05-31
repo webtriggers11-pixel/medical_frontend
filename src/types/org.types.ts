@@ -26,6 +26,9 @@ export interface Store {
   address: string;
   storeHeadName: string;
   storeHeadMobile: string;
+  storeContact: string | null;
+  storeAsstHeadName: string | null;
+  storeAsstHeadMobile: string | null;
   email: string | null;
   status: StoreStatus;
   createdAt: string;

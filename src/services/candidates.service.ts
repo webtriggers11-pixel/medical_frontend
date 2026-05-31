@@ -17,6 +17,11 @@ export const candidatesService = {
     return res.data.data;
   },
 
+  setApproval: async (id: string, isApproved: boolean): Promise<Candidate> => {
+    const res = await api.patch<ApiResponse<Candidate>>(`/candidates/${id}/approve`, { isApproved });
+    return res.data.data;
+  },
+
   bulkUpload: async (file: File, storeId: string): Promise<BulkUploadResult> => {
     const formData = new FormData();
     formData.append('file', file);

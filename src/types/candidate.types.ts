@@ -17,8 +17,14 @@ export interface Candidate {
   email: string;
   panNumber: string | null;
   isActive: boolean;
+  isApproved: boolean;
   createdAt: string;
-  store?: { id: string; name: string; storeCode: string } | null;
+  store?: {
+    id: string;
+    name: string;
+    storeCode: string;
+    city?: { id: string; name: string; zone?: { id: string; name: string } | null } | null;
+  } | null;
   client?: { id: string; name: string | null; email: string } | null;
 }
 

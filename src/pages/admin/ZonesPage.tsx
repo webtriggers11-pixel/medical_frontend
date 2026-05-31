@@ -10,6 +10,8 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Pagination } from '../../components/ui/Pagination';
+import { usePagination } from '../../hooks/usePagination';
 import { getApiErrorMessage } from '../../lib/apiError';
 import type { Zone } from '../../types/org.types';
 
@@ -89,6 +91,10 @@ export function ZonesPage() {
     z.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  const { page, setPage, totalPages, pageItems } = usePagination(filtered ?? [], {
+    resetKey: `${search}`,
+  });
+
   const handleEdit = (z: Zone) => { setEditing(z); setModalOpen(true); };
   const handleClose = () => { setEditing(null); setModalOpen(false); };
 
@@ -136,7 +142,7 @@ export function ZonesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filtered.map((z) => (
+                {pageItems.map((z) => (
                   <tr key={z.id} className="group hover:bg-slate-50/70 transition-colors">
                     <td className="px-5 py-3.5 font-medium text-slate-900">{z.name}</td>
                     <td className="px-5 py-3.5">
@@ -158,6 +164,11 @@ export function ZonesPage() {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="flex justify-end px-5 py-3 border-t border-border">
+              <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+            </div>
+          )}
         </Card>
       )}
 

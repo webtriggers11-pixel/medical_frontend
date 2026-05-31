@@ -12,6 +12,8 @@ import { Modal } from '../../components/ui/Modal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Pagination } from '../../components/ui/Pagination';
+import { usePagination } from '../../hooks/usePagination';
 import { getApiErrorMessage } from '../../lib/apiError';
 import type { Zone, City } from '../../types/org.types';
 
@@ -164,6 +166,13 @@ export function ZoneCityPage() {
     c.name.toLowerCase().includes(citySearch.toLowerCase())
   ) ?? [];
 
+  const { page: zonePage, setPage: setZonePage, totalPages: zoneTotalPages, pageItems: zoneItems } = usePagination(filteredZones, {
+    resetKey: zoneSearch,
+  });
+  const { page: cityPage, setPage: setCityPage, totalPages: cityTotalPages, pageItems: cityItems } = usePagination(filteredCities, {
+    resetKey: `${selectedZone?.id ?? ''}|${citySearch}`,
+  });
+
   const handleZoneSelect = (z: Zone) => {
     setSelectedZone(z);
     setCitySearch('');
@@ -227,7 +236,7 @@ export function ZoneCityPage() {
           )}
 
           <div className="space-y-1.5">
-            {filteredZones.map((z) => {
+            {zoneItems.map((z) => {
               const isSelected = selectedZone?.id === z.id;
               return (
                 <div
@@ -258,6 +267,12 @@ export function ZoneCityPage() {
               );
             })}
           </div>
+
+          {zoneTotalPages > 1 && (
+            <div className="flex justify-end pt-1">
+              <Pagination currentPage={zonePage} totalPages={zoneTotalPages} onPageChange={setZonePage} />
+            </div>
+          )}
         </div>
 
         {/* RIGHT — Cities for selected zone */}
@@ -331,7 +346,7 @@ export function ZoneCityPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
-                        {filteredCities.map((c) => (
+                        {cityItems.map((c) => (
                           <tr key={c.id} className="group hover:bg-slate-50/60 transition-colors">
                             <td className="px-5 py-3 font-medium text-slate-900">{c.name}</td>
                             <td className="px-5 py-3">
@@ -357,6 +372,11 @@ export function ZoneCityPage() {
                       </tbody>
                     </table>
                   </div>
+                  {cityTotalPages > 1 && (
+                    <div className="flex justify-end px-5 py-3 border-t border-border">
+                      <Pagination currentPage={cityPage} totalPages={cityTotalPages} onPageChange={setCityPage} />
+                    </div>
+                  )}
                 </Card>
               )}
             </>

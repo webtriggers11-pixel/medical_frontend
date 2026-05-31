@@ -11,6 +11,8 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Pagination } from '../../components/ui/Pagination';
+import { usePagination } from '../../hooks/usePagination';
 import { getApiErrorMessage } from '../../lib/apiError';
 import type { City } from '../../types/org.types';
 
@@ -95,6 +97,10 @@ export function CitiesPage() {
     c.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  const { page, setPage, totalPages, pageItems } = usePagination(filtered ?? [], {
+    resetKey: `${selectedZoneId}|${search}`,
+  });
+
   const handleEdit = (c: City) => { setEditing(c); setModalOpen(true); };
   const handleClose = () => { setEditing(null); setModalOpen(false); };
 
@@ -170,7 +176,7 @@ export function CitiesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filtered.map((c) => (
+                {pageItems.map((c) => (
                   <tr key={c.id} className="group hover:bg-slate-50/70 transition-colors">
                     <td className="px-5 py-3.5 font-medium text-slate-900">{c.name}</td>
                     <td className="px-5 py-3.5 text-slate-600">{selectedZone?.name ?? '—'}</td>
@@ -193,6 +199,11 @@ export function CitiesPage() {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="flex justify-end px-5 py-3 border-t border-border">
+              <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+            </div>
+          )}
         </Card>
       )}
 

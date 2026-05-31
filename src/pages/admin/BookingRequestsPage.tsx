@@ -10,6 +10,8 @@ import { Avatar } from '../../components/ui/Avatar';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Pagination } from '../../components/ui/Pagination';
+import { usePagination } from '../../hooks/usePagination';
 import { getApiErrorMessage } from '../../lib/apiError';
 import { format } from 'date-fns';
 import type { BookingRequest } from '../../types/booking.types';
@@ -136,6 +138,8 @@ export function BookingRequestsPage() {
     );
   }) ?? [];
 
+  const { page, setPage, totalPages, pageItems } = usePagination(filtered ?? [], { resetKey: `${search}` });
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -193,7 +197,7 @@ export function BookingRequestsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filtered.map((r) => (
+                {pageItems.map((r) => (
                   <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-5 py-4">
                       <p className="font-medium text-slate-900">{r.name}</p>
@@ -214,6 +218,11 @@ export function BookingRequestsPage() {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="flex justify-end px-5 py-3 border-t border-border">
+              <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+            </div>
+          )}
         </Card>
       )}
 

@@ -1,13 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth.store';
+import { Button } from '../../components/ui/Button';
 import { StatsCard } from '../../components/ui/StatsCard';
 import { Card, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Avatar } from '../../components/ui/Avatar';
+import { Combobox } from '../../components/ui/Combobox';
+import { DateRangePicker, type DateRange } from '../../components/ui/DateRangePicker';
 import { FunnelChart, type FunnelDatum } from '../../components/charts/FunnelChart';
 import { SkeletonTable } from '../../components/ui/Skeleton';
-import { useCandidates } from '../../features/candidates/hooks/useCandidates';
+import { Pagination } from '../../components/ui/Pagination';
+import { usePagination } from '../../hooks/usePagination';
+import { useCandidates, useSetCandidateApproval } from '../../features/candidates/hooks/useCandidates';
+import { Switch } from '../../components/ui/Switch';
+import { useBookings } from '../../features/booking/hooks/useBookings';
+import { UploadReportModal } from '../../features/reports/components/UploadReportModal';
+import { STATUS_LABEL, STATUS_VARIANT } from '../../types/booking.types';
 
 /* ── client (USER) dashboard — dummy data for now ─────────────────────── */
 
@@ -239,120 +248,451 @@ export function DashboardPage() {
   return <AdminDashboard firstName={firstName} />;
 }
 
+/* ── Stat chip for the hero ──────────────────────────────────── */
+
+function StatPill({ label, value, color }: { label: string; value: string | number; color: string }) {
+  return (
+    <div className={`flex flex-col items-center px-4 py-2 rounded-2xl ${color}`}>
+      <span className="text-xl font-bold leading-none">{value}</span>
+      <span className="text-xs font-medium mt-0.5 opacity-75">{label}</span>
+    </div>
+  );
+}
+
+/* ── Filter chip (active filter indicator) ───────────────────── */
+
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary-50 border border-primary-200 text-xs font-medium text-primary-700">
+      {label}
+      <button onClick={onRemove} className="hover:text-primary-900 transition-colors leading-none ml-0.5">
+        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </span>
+  );
+}
+
+/* ── Admin dashboard ─────────────────────────────────────────── */
+
+const ALL = '';
+const APPROVE_OPTIONS = [
+  { value: ALL, label: 'All' },
+  { value: 'true', label: 'Approved' },
+  { value: 'false', label: 'Not approved' },
+];
+
 function AdminDashboard({ firstName }: { firstName: string }) {
+  const navigate = useNavigate();
   const { data: candidates, isLoading, error } = useCandidates();
+  const { data: bookings } = useBookings();
+  const setApproval = useSetCandidateApproval();
+
+  /* ── filters ── */
+  const [fClient, setFClient] = useState(ALL);
+  const [fZone, setFZone] = useState(ALL);
+  const [fCity, setFCity] = useState(ALL);
+  const [fStore, setFStore] = useState(ALL);
+  const [fLab, setFLab] = useState(ALL);
+  const [fApprove, setFApprove] = useState(ALL);
+  const [fDateRange, setFDateRange] = useState<DateRange | undefined>(undefined);
+  const [filtersOpen, setFiltersOpen] = useState(true);
+
+  const resetFilters = () => { setFClient(ALL); setFZone(ALL); setFCity(ALL); setFStore(ALL); setFLab(ALL); setFApprove(ALL); setFDateRange(undefined); };
+  const hasFilter = !!(fClient || fZone || fCity || fStore || fLab || fApprove || fDateRange?.from);
+  const activeFilterCount = [fClient, fZone, fCity, fStore, fLab, fApprove].filter(Boolean).length + (fDateRange?.from ? 1 : 0);
+
+  /* ── booking map ── */
+  const bookingMap = useMemo(() => {
+    const m = new Map<string, typeof bookings extends (infer T)[] | undefined ? T : never>();
+    bookings?.forEach((b) => { const ex = m.get(b.candidateId); if (!ex || new Date(b.createdAt) > new Date(ex.createdAt)) m.set(b.candidateId, b); });
+    return m;
+  }, [bookings]);
+
+  /* ── derived options ── */
+  const clientOpts = useMemo(() => { const s = new Map<string, string>(); candidates?.forEach((c) => { if (c.client) s.set(c.clientId, c.client.name ?? c.client.email); }); return [{ value: ALL, label: 'All clients' }, ...Array.from(s, ([v, l]) => ({ value: v, label: l }))]; }, [candidates]);
+  const zoneOpts = useMemo(() => { const s = new Map<string, string>(); candidates?.forEach((c) => { const z = c.store?.city?.zone; if (z) s.set(z.id, z.name); }); return [{ value: ALL, label: 'All zones' }, ...Array.from(s, ([v, l]) => ({ value: v, label: l }))]; }, [candidates]);
+  const cityOpts = useMemo(() => { const s = new Map<string, string>(); candidates?.forEach((c) => { const city = c.store?.city; if (!city) return; if (fZone && city.zone?.id !== fZone) return; s.set(city.id, city.name); }); return [{ value: ALL, label: 'All cities' }, ...Array.from(s, ([v, l]) => ({ value: v, label: l }))]; }, [candidates, fZone]);
+  const storeOpts = useMemo(() => { const s = new Map<string, string>(); candidates?.forEach((c) => { if (!c.store) return; if (fCity && c.store.city?.id !== fCity) return; if (fZone && c.store.city?.zone?.id !== fZone) return; s.set(c.storeId, `${c.store.name} (${c.store.storeCode})`); }); return [{ value: ALL, label: 'All stores' }, ...Array.from(s, ([v, l]) => ({ value: v, label: l }))]; }, [candidates, fCity, fZone]);
+  const labOpts = useMemo(() => { const s = new Map<string, string>(); bookings?.forEach((b) => { if (b.lab) s.set(b.lab.id, b.lab.name); }); return [{ value: ALL, label: 'All labs' }, ...Array.from(s, ([v, l]) => ({ value: v, label: l }))]; }, [bookings]);
+
+  /* ── filtered list ── */
+  const filtered = useMemo(() => {
+    if (!candidates) return [];
+    return candidates.filter((c) => {
+      if (fClient && c.clientId !== fClient) return false;
+      if (fZone && c.store?.city?.zone?.id !== fZone) return false;
+      if (fCity && c.store?.city?.id !== fCity) return false;
+      if (fStore && c.storeId !== fStore) return false;
+      if (fLab) { const b = bookingMap.get(c.id); if (b?.lab?.id !== fLab) return false; }
+      if (fApprove !== ALL && String(c.isApproved) !== fApprove) return false;
+      if (fDateRange?.from) {
+        if (!c.appointmentDate) return false;
+        const d = new Date(c.appointmentDate); d.setHours(0, 0, 0, 0);
+        const from = new Date(fDateRange.from); from.setHours(0, 0, 0, 0);
+        if (d < from) return false;
+        if (fDateRange.to) { const to = new Date(fDateRange.to); to.setHours(23, 59, 59, 999); if (d > to) return false; }
+      }
+      return true;
+    });
+  }, [candidates, bookingMap, fClient, fZone, fCity, fStore, fLab, fApprove, fDateRange]);
+
+  const { page, setPage, totalPages, pageItems } = usePagination(filtered, {
+    resetKey: `${fClient}|${fZone}|${fCity}|${fStore}|${fLab}|${fApprove}|${fDateRange?.from?.toISOString() ?? ''}|${fDateRange?.to?.toISOString() ?? ''}`,
+  });
+
+  /* ── stats ── */
+  const totalBooked = useMemo(() => filtered.filter((c) => bookingMap.has(c.id)).length, [filtered, bookingMap]);
+  const totalApproved = useMemo(() => filtered.filter((c) => c.isApproved).length, [filtered]);
+  const totalPending = filtered.length - totalBooked;
+
+  const [uploadTarget, setUploadTarget] = useState<{ bookingId: string; candidateName: string; tests: string[] } | null>(null);
+
+  const th = 'text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap';
+
+  /* ── label lookup helpers ── */
+  const clientLabel = clientOpts.find((o) => o.value === fClient)?.label;
+  const zoneLabel = zoneOpts.find((o) => o.value === fZone)?.label;
+  const cityLabel = cityOpts.find((o) => o.value === fCity)?.label;
+  const storeLabel = storeOpts.find((o) => o.value === fStore)?.label;
+  const labLabel = labOpts.find((o) => o.value === fLab)?.label;
+  const approveLabel = APPROVE_OPTIONS.find((o) => o.value === fApprove)?.label;
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-          Welcome back, {firstName}
-        </h1>
-        <p className="text-slate-500 mt-1">
-          All candidates across the platform
-          {candidates && (
-            <span className="text-slate-400"> · {candidates.length} total</span>
-          )}
-        </p>
+
+      {/* ── Hero ── */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-600 via-primary-500 to-primary-700 px-6 py-7 sm:px-9">
+        <div className="pointer-events-none absolute -right-10 -top-14 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 right-24 h-40 w-40 rounded-full bg-primary-300/30 blur-3xl" />
+        <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+          <div>
+            <p className="text-white/60 text-sm font-medium">Admin Portal</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight mt-0.5">
+              Welcome back, {firstName}
+            </h1>
+            <p className="text-white/60 text-sm mt-1">
+              {candidates?.length ?? 0} candidates across the platform
+            </p>
+          </div>
+          {/* stat pills */}
+          <div className="flex gap-2 flex-wrap">
+            <StatPill label="Total" value={candidates?.length ?? 0} color="bg-white/15 text-white" />
+            <StatPill label="Booked" value={totalBooked} color="bg-emerald-400/20 text-emerald-100" />
+            <StatPill label="Pending" value={totalPending} color="bg-amber-400/20 text-amber-100" />
+            <StatPill label="Approved" value={totalApproved} color="bg-sky-400/20 text-sky-100" />
+          </div>
+        </div>
       </div>
 
-      {/* Candidate list */}
-      <Card padding="none">
-        <CardHeader className="px-5 pt-5">
-          <CardTitle>Candidates</CardTitle>
-        </CardHeader>
+      {/* ── Filters ── */}
+      <div className="rounded-2xl border border-border bg-surface shadow-card overflow-hidden">
+        {/* filter header */}
+        <button
+          type="button"
+          onClick={() => setFiltersOpen((v) => !v)}
+          className="w-full flex items-center justify-between gap-4 px-6 py-4 hover:bg-slate-50/60 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-primary-50 flex items-center justify-center">
+              <svg className="w-4 h-4 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+              </svg>
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-semibold text-slate-800">Filters</p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {activeFilterCount > 0 ? `${activeFilterCount} active · ${filtered.length} of ${candidates?.length ?? 0} shown` : 'All candidates shown'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {activeFilterCount > 0 && (
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary-600 text-[11px] font-bold text-white">
+                {activeFilterCount}
+              </span>
+            )}
+            <svg className={`w-4 h-4 text-slate-400 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </div>
+        </button>
+
+        {/* active filter chips */}
+        {hasFilter && (
+          <div className="flex flex-wrap gap-1.5 px-6 pb-3 pt-0">
+            {fClient && <FilterChip label={`Client: ${clientLabel}`} onRemove={() => setFClient(ALL)} />}
+            {fZone && <FilterChip label={`Zone: ${zoneLabel}`} onRemove={() => { setFZone(ALL); setFCity(ALL); setFStore(ALL); }} />}
+            {fCity && <FilterChip label={`City: ${cityLabel}`} onRemove={() => { setFCity(ALL); setFStore(ALL); }} />}
+            {fStore && <FilterChip label={`Store: ${storeLabel}`} onRemove={() => setFStore(ALL)} />}
+            {fLab && <FilterChip label={`Lab: ${labLabel}`} onRemove={() => setFLab(ALL)} />}
+            {fApprove && <FilterChip label={`Approval: ${approveLabel}`} onRemove={() => setFApprove(ALL)} />}
+            {fDateRange?.from && (
+              <FilterChip
+                label={`Date: ${fDateRange.from.toLocaleDateString('en-IN')}${fDateRange.to ? ` – ${fDateRange.to.toLocaleDateString('en-IN')}` : ''}`}
+                onRemove={() => setFDateRange(undefined)}
+              />
+            )}
+            <button onClick={resetFilters} className="text-xs font-medium text-slate-400 hover:text-red-500 transition-colors px-1">
+              Clear all
+            </button>
+          </div>
+        )}
+
+        {/* filter panel */}
+        {filtersOpen && (
+          <div className="px-6 pb-5 pt-1 border-t border-border bg-slate-50/40 animate-fade-in">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+              <Combobox options={clientOpts} value={fClient} onChange={setFClient} placeholder="All clients" label="Client" />
+              <Combobox options={zoneOpts} value={fZone} onChange={(v) => { setFZone(v); setFCity(ALL); setFStore(ALL); }} placeholder="All zones" label="Zone" />
+              <Combobox options={cityOpts} value={fCity} onChange={(v) => { setFCity(v); setFStore(ALL); }} placeholder="All cities" label="City" disabled={!fZone && cityOpts.length <= 1} />
+              <Combobox options={storeOpts} value={fStore} onChange={setFStore} placeholder="All stores" label="Store" />
+              <Combobox options={labOpts} value={fLab} onChange={setFLab} placeholder="All labs" label="Lab" />
+              <Combobox options={APPROVE_OPTIONS} value={fApprove} onChange={setFApprove} placeholder="All" label="Approve status" />
+              <div className="lg:col-span-2">
+                <DateRangePicker label="Appointment date range" value={fDateRange} onChange={setFDateRange} placeholder="All dates" />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Candidate table ── */}
+      <div className="rounded-2xl border border-border bg-surface shadow-card overflow-hidden">
+        {/* table header */}
+        <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-border">
+          <div>
+            <p className="font-semibold text-slate-900">Candidates</p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {hasFilter
+                ? <span><span className="font-medium text-primary-600">{filtered.length}</span> of {candidates?.length} match filters</span>
+                : <span><span className="font-medium text-slate-600">{candidates?.length ?? 0}</span> total</span>
+              }
+            </p>
+          </div>
+        </div>
 
         {isLoading && <SkeletonTable rows={8} />}
 
         {error && (
-          <p className="px-5 py-10 text-center text-sm text-red-500">
-            Failed to load candidates.
-          </p>
+          <div className="flex flex-col items-center py-14 gap-3">
+            <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+              <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
+            </div>
+            <p className="text-sm font-medium text-slate-500">Failed to load candidates</p>
+          </div>
         )}
 
-        {!isLoading && !error && candidates?.length === 0 && (
-          <p className="px-5 py-10 text-center text-sm text-slate-400">
-            No candidates yet.
-          </p>
+        {!isLoading && !error && filtered.length === 0 && (
+          <div className="flex flex-col items-center py-14 gap-3">
+            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
+              <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
+            </div>
+            <p className="text-sm font-medium text-slate-500">
+              {hasFilter ? 'No candidates match the selected filters' : 'No candidates yet'}
+            </p>
+            {hasFilter && <button onClick={resetFilters} className="text-xs text-primary-600 hover:text-primary-700 font-medium">Clear filters</button>}
+          </div>
         )}
 
-        {!isLoading && !error && candidates && candidates.length > 0 && (
+        {!isLoading && !error && filtered.length > 0 && (
           <div className="overflow-x-auto">
-            <div className="max-h-[calc(100vh-220px)] overflow-y-auto">
+            <div className="max-h-[calc(100vh-360px)] overflow-y-auto">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm">
-                  <tr className="border-b border-border">
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Candidate</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Employee Code</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Mobile</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Gender</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Type</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Store</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Client</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">DOJ</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Appointment</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Status</th>
+                <thead className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-border">
+                  <tr>
+                    <th className={th}>Candidate</th>
+                    <th className={th}>Emp. Code</th>
+                    <th className={th}>Mobile</th>
+                    <th className={th}>Gender</th>
+                    <th className={th}>Type</th>
+                    <th className={th}>Store</th>
+                    <th className={th}>Client</th>
+                    <th className={th}>DOJ</th>
+                    <th className={th}>Appointment</th>
+                    <th className={th}>Visit Time</th>
+                    <th className={th}>Requested</th>
+                    <th className={th}>Scheduled</th>
+                    <th className={th}>Lab Booked</th>
+                    <th className={th}>Booking Status</th>
+                    <th className={th}>Report</th>
+                    <th className={th}>Approved</th>
+                    <th className={th}>Active</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {candidates.map((c) => (
-                    <tr key={c.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-2.5">
-                          <Avatar name={c.name} size="sm" />
-                          <div className="min-w-0">
-                            <p className="font-medium text-slate-900 truncate">{c.name}</p>
-                            <p className="text-xs text-slate-400 truncate">{c.email}</p>
+                  {pageItems.map((c) => {
+                    const booking = bookingMap.get(c.id);
+                    const isBooked = !!booking;
+                    return (
+                      <tr key={c.id} className={`transition-colors group ${isBooked ? 'hover:bg-emerald-50/30' : 'hover:bg-primary-50/20'}`}>
+
+                        {/* Candidate */}
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <Avatar name={c.name} size="sm" />
+                            <div className="min-w-0">
+                              <p className="font-semibold text-slate-900 truncate leading-tight">{c.name}</p>
+                              <p className="text-[11px] text-slate-400 truncate mt-0.5">{c.email}</p>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5 text-slate-600 font-mono text-xs whitespace-nowrap">{c.employeeCode}</td>
-                      <td className="px-5 py-3.5 text-slate-600 whitespace-nowrap">{c.mobile}</td>
-                      <td className="px-5 py-3.5">
-                        <Badge variant="default" size="sm">{c.gender.toLowerCase()}</Badge>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <Badge variant="primary" size="sm">
-                          {c.candidateType.replace('_', ' ').toLowerCase()}
-                        </Badge>
-                      </td>
-                      <td className="px-5 py-3.5 text-slate-600 whitespace-nowrap">
-                        {c.store ? (
-                          <span>
-                            {c.store.name}{' '}
-                            <span className="text-xs text-slate-400">({c.store.storeCode})</span>
-                          </span>
-                        ) : '—'}
-                      </td>
-                      <td className="px-5 py-3.5 text-slate-600 whitespace-nowrap">
-                        {c.client?.name ?? c.client?.email ?? '—'}
-                      </td>
-                      <td className="px-5 py-3.5 text-slate-500 whitespace-nowrap text-xs">
-                        {new Date(c.doj).toLocaleDateString('en-IN')}
-                      </td>
-                      <td className="px-5 py-3.5 whitespace-nowrap text-xs">
-                        {c.appointmentDate ? (
-                          <span className="text-primary-600 font-medium">
-                            {new Date(c.appointmentDate).toLocaleDateString('en-IN')}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <Badge variant={c.isActive ? 'success' : 'default'} size="sm">
-                          {c.isActive ? 'active' : 'inactive'}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+
+                        {/* Emp code */}
+                        <td className="px-4 py-3.5">
+                          <span className="font-mono text-xs text-slate-600 bg-slate-100 px-2 py-0.5 rounded">{c.employeeCode}</span>
+                        </td>
+
+                        {/* Mobile */}
+                        <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap text-xs">{c.mobile}</td>
+
+                        {/* Gender */}
+                        <td className="px-4 py-3.5">
+                          <Badge variant="default" size="sm">{c.gender.toLowerCase()}</Badge>
+                        </td>
+
+                        {/* Type */}
+                        <td className="px-4 py-3.5">
+                          <Badge variant="primary" size="sm">{c.candidateType.replace('_', ' ').toLowerCase()}</Badge>
+                        </td>
+
+                        {/* Store */}
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          {c.store ? (
+                            <div>
+                              <p className="text-xs font-medium text-slate-800">{c.store.name}</p>
+                              <p className="text-[11px] text-slate-400 font-mono">{c.store.storeCode}</p>
+                            </div>
+                          ) : <span className="text-slate-300">—</span>}
+                        </td>
+
+                        {/* Client */}
+                        <td className="px-4 py-3.5 text-xs font-medium text-slate-700 whitespace-nowrap">
+                          {c.client?.name ?? c.client?.email ?? '—'}
+                        </td>
+
+                        {/* DOJ */}
+                        <td className="px-4 py-3.5 text-xs text-slate-500 whitespace-nowrap">
+                          {new Date(c.doj).toLocaleDateString('en-IN')}
+                        </td>
+
+                        {/* Appointment + Book */}
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          {c.appointmentDate && (
+                            <p className="text-[11px] font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full inline-block mb-1.5">
+                              {new Date(c.appointmentDate).toLocaleDateString('en-IN')}
+                            </p>
+                          )}
+                          <Button size="sm" onClick={() => navigate('/admin/book-lab', {
+                            state: { candidateId: c.id, clientId: c.clientId, storeId: c.storeId },
+                          })}>Book</Button>
+                        </td>
+
+                        {/* Visit time */}
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          {booking?.visitTime ? (
+                            <div>
+                              <p className="text-xs font-medium text-slate-700">
+                                {new Date(booking.visitTime).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                              </p>
+                              <p className="text-[11px] text-slate-400">
+                                {new Date(booking.visitTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                          ) : <span className="text-slate-300 text-xs">—</span>}
+                        </td>
+
+                        {/* Requested date */}
+                        <td className="px-4 py-3.5 text-xs text-slate-500 whitespace-nowrap">
+                          {booking?.reqDate
+                            ? new Date(booking.reqDate).toLocaleDateString('en-IN')
+                            : <span className="text-slate-300">—</span>}
+                        </td>
+
+                        {/* Scheduled date */}
+                        <td className="px-4 py-3.5 text-xs text-slate-500 whitespace-nowrap">
+                          {booking?.scheduledDate
+                            ? new Date(booking.scheduledDate).toLocaleDateString('en-IN')
+                            : <span className="text-slate-300">—</span>}
+                        </td>
+
+                        {/* Lab booked */}
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          {booking?.lab ? (
+                            <div>
+                              <p className="text-xs font-semibold text-slate-800">{booking.lab.name}</p>
+                              {booking.lab.contactMobile && (
+                                <p className="text-[11px] text-slate-400 mt-0.5">{booking.lab.contactMobile}</p>
+                              )}
+                            </div>
+                          ) : <span className="text-slate-300 text-xs">—</span>}
+                        </td>
+
+                        {/* Booking status */}
+                        <td className="px-4 py-3.5">
+                          <Badge variant={booking ? STATUS_VARIANT[booking.status] : 'warning'} size="sm">
+                            {booking ? STATUS_LABEL[booking.status] : 'Pending'}
+                          </Badge>
+                        </td>
+
+                        {/* Report */}
+                        <td className="px-4 py-3.5">
+                          {booking?.status === 'REPORT_UPLOADED' || booking?.status === 'FIT' || booking?.status === 'UNFIT' ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                              Uploaded
+                            </span>
+                          ) : booking ? (
+                            <Button size="sm" variant="outline" onClick={() => setUploadTarget({ bookingId: booking.id, candidateName: c.name, tests: booking.panel?.bundledTest?.testsIncluded ?? [] })}>
+                              Upload
+                            </Button>
+                          ) : <span className="text-slate-300 text-xs">—</span>}
+                        </td>
+
+                        {/* Approved toggle */}
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={c.isApproved}
+                              onChange={(val) => setApproval.mutate({ id: c.id, isApproved: val })}
+                              loading={setApproval.isPending && setApproval.variables?.id === c.id}
+                              label="Approve candidate"
+                            />
+                            <span className={`text-[11px] font-medium ${c.isApproved ? 'text-emerald-600' : 'text-slate-400'}`}>
+                              {c.isApproved ? 'Yes' : 'No'}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Active */}
+                        <td className="px-4 py-3.5">
+                          <Badge variant={c.isActive ? 'success' : 'default'} size="sm">
+                            {c.isActive ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
+            {totalPages > 1 && (
+              <div className="flex justify-end px-4 py-3 border-t border-border">
+                <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+              </div>
+            )}
           </div>
         )}
-      </Card>
+      </div>
+
+      {uploadTarget && (
+        <UploadReportModal
+          open={!!uploadTarget}
+          onClose={() => setUploadTarget(null)}
+          bookingId={uploadTarget.bookingId}
+          candidateName={uploadTarget.candidateName}
+          tests={uploadTarget.tests}
+        />
+      )}
     </div>
   );
 }

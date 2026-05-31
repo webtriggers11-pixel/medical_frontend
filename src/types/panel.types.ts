@@ -11,7 +11,7 @@ export interface Panel {
   labContact: string | null;
   status: PanelStatus;
   createdAt: string;
-  lab?: { id: string; name: string; serviceCities: string[] };
+  lab?: { id: string; name: string; address: string | null; pincode: string | null; serviceCities: string[] };
   bundledTest?: { id: string; name: string; testsIncluded: string[] };
   clientPricing?: ClientPanelPricing[];
 }

@@ -13,6 +13,8 @@ import { Input } from '../../components/ui/Input';
 import { Combobox } from '../../components/ui/Combobox';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Pagination } from '../../components/ui/Pagination';
+import { usePagination } from '../../hooks/usePagination';
 import { getApiErrorMessage } from '../../lib/apiError';
 import type { Panel, CreatePanelInput } from '../../types/panel.types';
 
@@ -308,6 +310,10 @@ function PanelsTab({ clientId }: { clientId: string }) {
     p.clientPricing?.some((cp) => cp.clientId === clientId)
   ) ?? [];
 
+  const { page, setPage, totalPages, pageItems } = usePagination(assignedPanels ?? [], {
+    resetKey: `${clientId}-${assignedPanels.length}`,
+  });
+
   const getClientPricing = (panel: Panel) =>
     panel.clientPricing?.find((cp) => cp.clientId === clientId);
 
@@ -393,7 +399,7 @@ function PanelsTab({ clientId }: { clientId: string }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {assignedPanels.map((panel) => {
+                {pageItems.map((panel) => {
                   const cp = getClientPricing(panel);
                   if (!cp) return null;
                   const clientCost = Number(cp.costToClient);
@@ -443,6 +449,11 @@ function PanelsTab({ clientId }: { clientId: string }) {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="flex justify-end px-5 py-3 border-t border-border">
+              <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+            </div>
+          )}
         </Card>
       )}
 

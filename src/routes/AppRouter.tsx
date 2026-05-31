@@ -9,6 +9,7 @@ import { DashboardPage } from '../pages/dashboard/DashboardPage';
 import { ClientsPage } from '../pages/admin/ClientsPage';
 import { ClientDetailPage } from '../pages/admin/ClientDetailPage';
 import { BookingRequestsPage } from '../pages/admin/BookingRequestsPage';
+import { BookLabPage } from '../pages/admin/BookLabPage';
 import { ZonesPage } from '../pages/admin/ZonesPage';
 import { CitiesPage } from '../pages/admin/CitiesPage';
 import { ZoneCityPage } from '../pages/admin/ZoneCityPage';
@@ -17,6 +18,7 @@ import { AddStorePage } from '../pages/admin/AddStorePage';
 import { LabsPage } from '../pages/admin/LabsPage';
 import { PanelsPage } from '../pages/admin/PanelsPage';
 import { CandidatesPage } from '../pages/candidates/CandidatesPage';
+import { CandidateDetailPage } from '../pages/candidates/CandidateDetailPage';
 import { AddCandidatePage } from '../pages/candidates/AddCandidatePage';
 import { ROLE_GROUPS } from '../config/roles';
 import { UnauthorizedPage } from '../pages/UnauthorizedPage';
@@ -43,6 +45,7 @@ export const AppRouter = () => (
             <Route path="/admin/clients" element={<ClientsPage />} />
             <Route path="/admin/clients/:id" element={<ClientDetailPage />} />
             <Route path="/admin/booking-requests" element={<BookingRequestsPage />} />
+            <Route path="/admin/book-lab" element={<BookLabPage />} />
             <Route path="/admin/zones" element={<ZonesPage />} />
             <Route path="/admin/cities" element={<CitiesPage />} />
             <Route path="/admin/zone-city" element={<ZoneCityPage />} />
@@ -56,6 +59,7 @@ export const AppRouter = () => (
           <Route element={<RoleRoute allowedRoles={ROLE_GROUPS.userOnly} />}>
             <Route path="/candidates" element={<CandidatesPage />} />
             <Route path="/candidates/new" element={<AddCandidatePage />} />
+            <Route path="/candidates/:id" element={<CandidateDetailPage />} />
             <Route path="/stores" element={<StoresPage />} />
             <Route path="/stores/new" element={<AddStorePage />} />
           </Route>

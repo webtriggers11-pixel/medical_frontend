@@ -5,6 +5,8 @@ import { Badge } from '../../components/ui/Badge';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Pagination } from '../../components/ui/Pagination';
+import { usePagination } from '../../hooks/usePagination';
 
 const fmt = (n: number) => `₹${Number(n).toLocaleString('en-IN')}`;
 
@@ -19,6 +21,10 @@ export function PanelsPage() {
       (p.lab?.name ?? '').toLowerCase().includes(q) ||
       (p.bundledTest?.name ?? '').toLowerCase().includes(q)
     );
+  });
+
+  const { page, setPage, totalPages, pageItems } = usePagination(filtered ?? [], {
+    resetKey: `${search}`,
   });
 
   return (
@@ -61,7 +67,7 @@ export function PanelsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filtered.map((p) => (
+                {pageItems.map((p) => (
                   <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-5 py-4">
                       <p className="font-semibold text-slate-900">{p.name}</p>
@@ -94,6 +100,11 @@ export function PanelsPage() {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="flex justify-end px-5 py-3 border-t border-border">
+              <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+            </div>
+          )}
         </Card>
       )}
 
