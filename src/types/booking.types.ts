@@ -9,6 +9,7 @@ export type BookingStatus =
 
 export interface Booking {
   id: string;
+  bookingId: string | null;
   candidateId: string;
   panelId: string;
   labId: string;
@@ -68,6 +69,7 @@ export interface BookingScheduleChange {
 // A candidate awaiting booking — has appointmentDate, no booking yet.
 export interface BookingRequest {
   id: string;
+  candidateId: string | null;
   name: string;
   employeeCode: string;
   mobile: string;

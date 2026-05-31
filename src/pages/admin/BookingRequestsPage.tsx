@@ -194,6 +194,7 @@ export function BookingRequestsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-slate-50/60">
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">ID</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Candidate</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Client</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Store</th>
@@ -206,6 +207,9 @@ export function BookingRequestsPage() {
               <tbody className="divide-y divide-border">
                 {pageItems.map((r) => (
                   <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-5 py-4">
+                      <span className="text-xs font-mono font-semibold text-slate-400">{r.candidateId ?? '—'}</span>
+                    </td>
                     <td className="px-5 py-4">
                       <p className="font-medium text-slate-900">{r.name}</p>
                       <p className="text-xs text-slate-400">{r.employeeCode}</p>

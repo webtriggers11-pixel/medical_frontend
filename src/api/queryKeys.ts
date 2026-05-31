@@ -35,6 +35,10 @@ export const queryKeys = {
     byStatus: (status: string) => ['bookings', 'status', status] as const,
     byId: (id: string) => ['bookings', id] as const,
   },
+  testMasters: {
+    all: ['test-masters'] as const,
+    byId: (id: string) => ['test-masters', id] as const,
+  },
   reports: {
     all: ['reports'] as const,
     byCandidate: (candidateId: string) => ['reports', 'candidate', candidateId] as const,

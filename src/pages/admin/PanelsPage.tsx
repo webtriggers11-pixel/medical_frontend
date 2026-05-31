@@ -16,10 +16,12 @@ export function PanelsPage() {
 
   const filtered = panels?.filter((p) => {
     const q = search.toLowerCase();
+    const testNames = p.panelTests?.map((pt) => pt.testMaster?.name ?? '').join(' ') ?? '';
     return (
       p.name.toLowerCase().includes(q) ||
       (p.lab?.name ?? '').toLowerCase().includes(q) ||
-      (p.bundledTest?.name ?? '').toLowerCase().includes(q)
+      (p.bundledTest?.name ?? '').toLowerCase().includes(q) ||
+      testNames.toLowerCase().includes(q)
     );
   });
 
@@ -64,7 +66,6 @@ export function PanelsPage() {
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Lab</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Lab contact</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Service cities</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Bundled test</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Tests included</th>
                   <th className="text-right px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">MRP</th>
                   <th className="text-right px-5 py-3.5 text-xs font-semibold text-orange-600 uppercase tracking-wider whitespace-nowrap">Vendor cost</th>
@@ -111,19 +112,26 @@ export function PanelsPage() {
                         </div>
                       ) : '—'}
                     </td>
-                    {/* Bundled test name */}
-                    <td className="px-5 py-4 text-slate-700">{p.bundledTest?.name ?? '—'}</td>
-                    {/* Tests included — truncated */}
+                    {/* Tests included — from TestMaster join, with fallback to legacy bundledTest data */}
                     <td className="px-5 py-4">
-                      {p.bundledTest?.testsIncluded?.length ? (
+                      {p.panelTests?.length ? (
+                        <div className="flex flex-wrap items-center gap-1 max-w-[220px]">
+                          {p.panelTests.slice(0, 4).map((pt) => (
+                            <Badge key={pt.id} size="sm" variant="default">{pt.testMaster?.name ?? '—'}</Badge>
+                          ))}
+                          {p.panelTests.length > 4 && (
+                            <span className="text-xs text-slate-400" title={p.panelTests.map((pt) => pt.testMaster?.name).join(', ')}>
+                              +{p.panelTests.length - 4}
+                            </span>
+                          )}
+                        </div>
+                      ) : p.bundledTest?.testsIncluded?.length ? (
                         <div className="flex flex-wrap items-center gap-1 max-w-[220px]">
                           {p.bundledTest.testsIncluded.slice(0, 4).map((t) => (
                             <Badge key={t} size="sm" variant="default">{t}</Badge>
                           ))}
                           {p.bundledTest.testsIncluded.length > 4 && (
-                            <span className="text-xs text-slate-400" title={p.bundledTest.testsIncluded.join(', ')}>
-                              +{p.bundledTest.testsIncluded.length - 4}
-                            </span>
+                            <span className="text-xs text-slate-400">+{p.bundledTest.testsIncluded.length - 4}</span>
                           )}
                         </div>
                       ) : '—'}

@@ -3,6 +3,7 @@ export type CandidateType = 'NEW_JOINER' | 'EXISTING' | 'ANNUAL';
 
 export interface Candidate {
   id: string;
+  candidateId: string | null;
   storeId: string;
   clientId: string;
   name: string;

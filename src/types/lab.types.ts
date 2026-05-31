@@ -2,6 +2,7 @@ export type LabStatus = 'ACTIVE' | 'INACTIVE';
 
 export interface Lab {
   id: string;
+  labId: string | null;
   name: string;
   contactName: string;
   contactMobile: string;

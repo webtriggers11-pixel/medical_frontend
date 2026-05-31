@@ -34,6 +34,12 @@ export const useSetClientActive = () => {
   });
 };
 
+export const useResetPassword = () =>
+  useMutation({
+    mutationFn: ({ id, password }: { id: string; password: string }) =>
+      usersService.resetPassword(id, password),
+  });
+
 export const useDeleteClient = () => {
   const qc = useQueryClient();
   return useMutation({

@@ -1,16 +1,20 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
-import { useClientById } from '../../features/users/hooks/useUsers';
+import { useClientById, useResetPassword } from '../../features/users/hooks/useUsers';
 import { usePanels, useSetPanelPricing, useRemovePanelPricing } from '../../features/panel/hooks/usePanels';
-import { useLabs, useBundledTests } from '../../features/lab/hooks/useLabs';
+import { useLabs } from '../../features/lab/hooks/useLabs';
+import { useTestMasters } from '../../features/test-master/hooks/useTestMaster';
 import { panelService } from '../../services/panel.service';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { PasswordInput } from '../../components/ui/PasswordInput';
 import { Combobox } from '../../components/ui/Combobox';
+import { MultiSelectCombobox } from '../../components/ui/MultiSelectCombobox';
+import { Modal } from '../../components/ui/Modal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Pagination } from '../../components/ui/Pagination';
@@ -32,11 +36,136 @@ const PlusIcon = (
   </svg>
 );
 
+const KeyIcon = (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+  </svg>
+);
+
+// ── Reset password modal (admin) ──────────────────────────────────
+// Two-step: validate the new password, then require an explicit confirmation
+// warning before the credentials are changed.
+
+interface ResetPasswordFormValues {
+  password: string;
+  confirmPassword: string;
+}
+
+function ResetPasswordModal({
+  open,
+  onClose,
+  clientId,
+  clientLabel,
+}: {
+  open: boolean;
+  onClose: () => void;
+  clientId: string;
+  clientLabel: string;
+}) {
+  const resetPassword = useResetPassword();
+  const [apiError, setApiError] = useState('');
+  const [success, setSuccess] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  const { register, handleSubmit, watch, reset, formState: { errors } } =
+    useForm<ResetPasswordFormValues>();
+
+  const handleClose = () => {
+    reset();
+    setApiError('');
+    setSuccess(false);
+    setConfirming(false);
+    onClose();
+  };
+
+  // Step 1: fields valid → show the confirmation warning.
+  const onValid = () => {
+    setApiError('');
+    setConfirming(true);
+  };
+
+  // Step 2: warning confirmed → update the password.
+  const handleConfirm = async () => {
+    setApiError('');
+    try {
+      await resetPassword.mutateAsync({ id: clientId, password: watch('password') });
+      setConfirming(false);
+      setSuccess(true);
+      setTimeout(handleClose, 1600);
+    } catch (err) {
+      setConfirming(false);
+      setApiError(getApiErrorMessage(err));
+    }
+  };
+
+  return (
+    <>
+      <Modal
+        open={open}
+        onClose={handleClose}
+        title="Reset password"
+        size="md"
+        footer={
+          success ? undefined : (
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={handleClose}>Cancel</Button>
+              <Button type="submit" form="reset-password-form">Reset password</Button>
+            </div>
+          )
+        }
+      >
+        {success ? (
+          <p className="text-sm text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2">
+            Password has been reset successfully.
+          </p>
+        ) : (
+          <form id="reset-password-form" onSubmit={handleSubmit(onValid)} className="space-y-4">
+            {apiError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>}
+            <p className="text-sm text-slate-500">
+              Set a new login password for <strong>{clientLabel}</strong>.
+            </p>
+            <PasswordInput
+              label="New password"
+              required
+              placeholder="Min 8 characters"
+              {...register('password', {
+                required: 'Required',
+                minLength: { value: 8, message: 'Must be at least 8 characters' },
+              })}
+              error={errors.password?.message}
+            />
+            <PasswordInput
+              label="Confirm password"
+              required
+              placeholder="Re-enter the new password"
+              {...register('confirmPassword', {
+                required: 'Required',
+                validate: (v) => v === watch('password') || 'Passwords do not match',
+              })}
+              error={errors.confirmPassword?.message}
+            />
+          </form>
+        )}
+      </Modal>
+
+      <ConfirmDialog
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        loading={resetPassword.isPending}
+        title="Reset password"
+        confirmLabel="Reset password"
+        variant="danger"
+        message="Are you sure you want to reset the password for this user? "
+        onConfirm={handleConfirm}
+      />
+    </>
+  );
+}
+
 // ── Add panel form (create + assign in one step) ──────────────────
 
 interface AddPanelFormValues {
   labId: string;
-  bundledTestId: string;
   name: string;
   mrp: number;
   costToVendor: number;
@@ -53,17 +182,15 @@ function AddPanelForm({
   onCancel: () => void;
 }) {
   const { data: labs, isLoading: labsLoading } = useLabs();
-  const [selectedLabId, setSelectedLabId] = useState('');
+  const { data: allTests } = useTestMasters();
+  const [selectedTests, setSelectedTests] = useState<string[]>([]);
+  const [testError, setTestError] = useState('');
   const [apiError, setApiError] = useState('');
-  const { data: bundledTests, isLoading: testsLoading } = useBundledTests(selectedLabId);
 
   const {
-    register, control, handleSubmit, watch, setValue,
+    register, control, handleSubmit, watch,
     formState: { errors, isSubmitting },
   } = useForm<AddPanelFormValues>();
-
-  const watchedLabId = watch('labId');
-  if (watchedLabId !== selectedLabId) setSelectedLabId(watchedLabId);
 
   const watchedCost = watch('costToClient');
   const watchedVendor = watch('costToVendor');
@@ -74,24 +201,21 @@ function AddPanelForm({
     ? ((margin / Number(watchedCost)) * 100).toFixed(1)
     : null;
 
-  // Auto-fill panel name from bundled test selection
-  const selectedTest = bundledTests?.find((t) => t.id === watch('bundledTestId'));
-  const handleTestChange = (id: string, onChange: (v: string) => void) => {
-    onChange(id);
-    const test = bundledTests?.find((t) => t.id === id);
-    if (test) setValue('name', test.name);
-  };
+  const activeTests = allTests?.filter((t) => t.status === 'ACTIVE') ?? [];
 
   const labOptions = labs?.map((l) => ({ value: l.id, label: l.name })) ?? [];
-  const testOptions = bundledTests?.map((t) => ({ value: t.id, label: t.name })) ?? [];
 
   const onSubmit = async (values: AddPanelFormValues) => {
+    if (selectedTests.length === 0) {
+      setTestError('Select at least one test');
+      return;
+    }
     setApiError('');
     try {
-      // Step 1: Create the panel in master
+      // Step 1: Create the panel with selected TestMaster IDs
       const panelInput: CreatePanelInput = {
         labId: values.labId,
-        bundledTestId: values.bundledTestId,
+        testMasterIds: selectedTests,
         name: values.name,
         mrp: Number(values.mrp),
         costToVendor: Number(values.costToVendor),
@@ -117,6 +241,7 @@ function AddPanelForm({
       {apiError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {/* Lab + Tests side by side */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Controller
             name="labId"
@@ -136,40 +261,28 @@ function AddPanelForm({
               />
             )}
           />
-          <Controller
-            name="bundledTestId"
-            control={control}
-            rules={{ required: 'Required' }}
-            render={({ field }) => (
-              <Combobox
-                label="Bundled test"
-                required
-                options={testOptions}
-                placeholder={selectedLabId ? 'Select a test' : 'Select lab first'}
-                searchPlaceholder="Search tests..."
-                disabled={!selectedLabId}
-                value={field.value ?? ''}
-                onChange={(id) => handleTestChange(id, field.onChange)}
-                error={errors.bundledTestId?.message}
-                loading={testsLoading}
-              />
-            )}
+
+          <MultiSelectCombobox
+            label="Tests"
+            required
+            placeholder="Select one or more tests…"
+            searchPlaceholder="Search tests…"
+            options={activeTests.map((t) => ({
+              value: t.id,
+              label: t.name,
+              sublabel: t.description ?? undefined,
+            }))}
+            value={selectedTests}
+            onChange={(ids) => { setSelectedTests(ids); setTestError(''); }}
+            error={testError}
+            emptyText="No active tests — add tests from the Tests page first."
           />
         </div>
-
-        {/* Tests included preview */}
-        {selectedTest && selectedTest.testsIncluded.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {selectedTest.testsIncluded.map((t) => (
-              <span key={t} className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">{t}</span>
-            ))}
-          </div>
-        )}
 
         <Input
           label="Panel name"
           required
-          placeholder="Auto-filled from bundled test"
+          placeholder="Enter panel name"
           {...register('name', { required: 'Required' })}
           error={errors.name?.message}
         />
@@ -412,9 +525,19 @@ function PanelsTab({ clientId }: { clientId: string }) {
                       <td className="px-5 py-3.5">
                         <p className="font-medium text-slate-900">{panel.name}</p>
                         <div className="flex flex-wrap gap-1 mt-1">
-                          {(panel.bundledTest?.testsIncluded ?? []).slice(0, 3).map((t) => (
-                            <span key={t} className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">{t}</span>
-                          ))}
+                          {panel.panelTests?.length
+                            ? panel.panelTests.slice(0, 3).map((pt) => (
+                                <span key={pt.id} className="text-xs px-1.5 py-0.5 rounded bg-primary-50 text-primary-600">{pt.testMaster?.name}</span>
+                              ))
+                            : (panel.bundledTest?.testsIncluded ?? []).slice(0, 3).map((t) => (
+                                <span key={t} className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">{t}</span>
+                              ))
+                          }
+                          {(panel.panelTests?.length ?? 0) > 3 && (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-400">
+                              +{(panel.panelTests?.length ?? 0) - 3} more
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-5 py-3.5 text-slate-500 text-sm">
@@ -488,6 +611,7 @@ export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: client, isLoading, error } = useClientById(id ?? '');
+  const [resetOpen, setResetOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -539,6 +663,9 @@ export function ClientDetailPage() {
               Client since {new Date(client.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </div>
+          <Button variant="outline" size="sm" icon={KeyIcon} onClick={() => setResetOpen(true)}>
+            Reset password
+          </Button>
         </div>
       </Card>
 
@@ -550,6 +677,13 @@ export function ClientDetailPage() {
         </div>
         <PanelsTab clientId={client.id} />
       </div>
+
+      <ResetPasswordModal
+        open={resetOpen}
+        onClose={() => setResetOpen(false)}
+        clientId={client.id}
+        clientLabel={client.name ?? client.email}
+      />
     </div>
   );
 }

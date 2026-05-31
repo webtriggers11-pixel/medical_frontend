@@ -489,6 +489,7 @@ export function LabsPage() {
             <table className="w-full text-sm whitespace-nowrap">
               <thead>
                 <tr className="border-b border-border">
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">ID</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Lab</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Address</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Contact</th>
@@ -501,6 +502,9 @@ export function LabsPage() {
               <tbody className="divide-y divide-border">
                 {pageItems.map((l) => (
                   <tr key={l.id} className="group hover:bg-slate-50/70 transition-colors">
+                    <td className="px-5 py-3.5">
+                      <span className="text-xs font-mono font-semibold text-slate-400">{l.labId ?? '—'}</span>
+                    </td>
                     <td className="px-5 py-3.5">
                       <p className="font-medium text-slate-900">{l.name}</p>
                     </td>

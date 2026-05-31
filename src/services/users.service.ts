@@ -27,4 +27,10 @@ export const usersService = {
   remove: async (id: string): Promise<void> => {
     await api.delete(`/users/${id}`);
   },
+
+  // Admin resets a client's login password. Only the new password is sent;
+  // the confirm-password match is validated in the form.
+  resetPassword: async (id: string, password: string): Promise<void> => {
+    await api.patch(`/users/${id}/reset-password`, { password });
+  },
 };

@@ -19,6 +19,7 @@ export interface City {
 
 export interface Store {
   id: string;
+  storeId: string | null;
   cityId: string;
   clientId: string;
   name: string;

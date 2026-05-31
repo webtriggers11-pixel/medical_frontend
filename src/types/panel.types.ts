@@ -1,9 +1,16 @@
 export type PanelStatus = 'ACTIVE' | 'INACTIVE';
 
+export interface PanelTest {
+  id: string;
+  panelId: string;
+  testMasterId: string;
+  testMaster?: { id: string; name: string; status: string };
+}
+
 export interface Panel {
   id: string;
   labId: string;
-  bundledTestId: string;
+  bundledTestId: string | null;
   name: string;
   timing: string | null;
   mrp: number;
@@ -12,7 +19,8 @@ export interface Panel {
   status: PanelStatus;
   createdAt: string;
   lab?: { id: string; name: string; address: string | null; pincode: string | null; serviceCities: string[] };
-  bundledTest?: { id: string; name: string; testsIncluded: string[] };
+  bundledTest?: { id: string; name: string; testsIncluded: string[] } | null;
+  panelTests?: PanelTest[];
   clientPricing?: ClientPanelPricing[];
 }
 
@@ -28,7 +36,7 @@ export interface ClientPanelPricing {
 
 export interface CreatePanelInput {
   labId: string;
-  bundledTestId: string;
+  testMasterIds: string[];
   name: string;
   timing?: string;
   mrp: number;

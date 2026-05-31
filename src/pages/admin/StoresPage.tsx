@@ -350,6 +350,7 @@ export function StoresPage() {
             <table className="w-full text-sm whitespace-nowrap">
               <thead>
                 <tr className="border-b border-border">
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">ID</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Store</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Code</th>
                   {isAdmin && <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Client</th>}
@@ -364,6 +365,9 @@ export function StoresPage() {
               <tbody className="divide-y divide-border">
                 {pageItems.map((s) => (
                   <tr key={s.id} className="group hover:bg-slate-50/70 transition-colors">
+                    <td className="px-5 py-3.5">
+                      <span className="text-xs font-mono font-semibold text-slate-400">{s.storeId ?? '—'}</span>
+                    </td>
                     <td className="px-5 py-3.5 font-medium text-slate-900">{s.name}</td>
                     <td className="px-5 py-3.5 text-slate-500 font-mono text-xs">{s.storeCode}</td>
                     {isAdmin && (

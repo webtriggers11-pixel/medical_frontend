@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate, Link } from 'react-router-dom';
 import { useLogin } from '../../features/auth/hooks/useLogin';
 import { Input } from '../../components/ui/Input';
+import { PasswordInput } from '../../components/ui/PasswordInput';
 import { Button } from '../../components/ui/Button';
 import type { AxiosError } from 'axios';
 
@@ -47,9 +48,8 @@ export function LoginPage() {
           })}
         />
 
-        <Input
+        <PasswordInput
           label="Password"
-          type="password"
           autoComplete="current-password"
           placeholder="Enter your password"
           error={errors.password?.message}

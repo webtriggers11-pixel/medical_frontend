@@ -180,6 +180,7 @@ export function CandidatesPage() {
             <table className="w-full text-sm whitespace-nowrap">
               <thead>
                 <tr className="border-b border-border">
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">ID</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Candidate</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Emp. Code</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Mobile</th>
@@ -198,6 +199,9 @@ export function CandidatesPage() {
                   return (
                     <Fragment key={c.id}>
                       <tr className={`group transition-colors ${isExpanded ? 'bg-primary-50/60' : 'hover:bg-slate-50/70'}`}>
+                        <td className="px-5 py-3.5">
+                          <span className="text-xs font-mono font-semibold text-slate-400">{c.candidateId ?? '—'}</span>
+                        </td>
                         <td className="px-5 py-3.5">
                           <div
                             role="button"
@@ -254,7 +258,7 @@ export function CandidatesPage() {
                       </tr>
                       {isExpanded && booking && (
                         <tr className="bg-primary-50/60">
-                          <td colSpan={8} className="p-0">
+                          <td colSpan={9} className="p-0">
                             <div className="mx-4 mb-4 overflow-hidden rounded-xl border border-primary-200 bg-white shadow-md ring-1 ring-primary-100 animate-fade-in">
                               {/* accent header bar */}
                               <div className="flex items-center gap-2 border-b border-primary-200 bg-gradient-to-r from-primary-100/80 to-primary-50 px-5 py-2.5">
