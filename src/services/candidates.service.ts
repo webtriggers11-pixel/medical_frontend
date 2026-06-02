@@ -11,12 +11,14 @@ export const candidatesService = {
     clientId?: string;
     storeId?: string;
     available?: boolean;
+    search?: string;
   }): Promise<Candidate[]> => {
     const res = await api.get<ApiResponse<Candidate[]>>('/candidates', {
       params: {
         clientId: params?.clientId,
         storeId: params?.storeId,
         available: params?.available ? 'true' : undefined,
+        search: params?.search || undefined,
       },
     });
     return res.data.data;

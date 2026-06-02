@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Avatar } from '../../components/ui/Avatar';
 import { Combobox } from '../../components/ui/Combobox';
+import { SearchInput } from '../../components/ui/SearchInput';
 import { DateRangePicker, type DateRange } from '../../components/ui/DateRangePicker';
 import { FunnelChart, type FunnelDatum } from '../../components/charts/FunnelChart';
 import { SkeletonTable } from '../../components/ui/Skeleton';
@@ -17,8 +18,9 @@ import { Switch } from '../../components/ui/Switch';
 import { useBookings } from '../../features/booking/hooks/useBookings';
 import { RescheduleModal } from '../../features/booking/components/RescheduleModal';
 import { UploadReportModal } from '../../features/reports/components/UploadReportModal';
-import { EditReportModal } from '../../features/reports/components/EditReportModal';
+import { ReportManagerModal } from '../../features/reports/components/ReportManagerModal';
 import { useReports } from '../../features/reports/hooks/useReports';
+import { downloadReportFiles } from '../../features/reports/lib/fileDownload';
 import type { Booking } from '../../types/booking.types';
 import { bookingStatusLabel, bookingStatusVariant, isRescheduled } from '../../types/booking.types';
 import type { Report } from '../../types/report.types';
@@ -320,7 +322,14 @@ function statusBucket(booking?: Booking): string {
 
 function AdminDashboard({ firstName }: { firstName: string }) {
   const navigate = useNavigate();
-  const { data: candidates, isLoading, error } = useCandidates();
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  // Debounce the search box, then let the backend filter the candidate list.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+  const { data: candidates, isLoading, error } = useCandidates(debouncedSearch ? { search: debouncedSearch } : undefined);
   const { data: bookings } = useBookings();
   const { data: reports } = useReports();
   const setApproval = useSetCandidateApproval();
@@ -336,8 +345,8 @@ function AdminDashboard({ firstName }: { firstName: string }) {
   const [fDateRange, setFDateRange] = useState<DateRange | undefined>(undefined);
   const [filtersOpen, setFiltersOpen] = useState(true);
 
-  const resetFilters = () => { setFClient(ALL); setFZone(ALL); setFCity(ALL); setFStore(ALL); setFLab(ALL); setFStatus(ALL); setFApprove(ALL); setFDateRange(undefined); };
-  const hasFilter = !!(fClient || fZone || fCity || fStore || fLab || fStatus || fApprove || fDateRange?.from);
+  const resetFilters = () => { setSearch(''); setFClient(ALL); setFZone(ALL); setFCity(ALL); setFStore(ALL); setFLab(ALL); setFStatus(ALL); setFApprove(ALL); setFDateRange(undefined); };
+  const hasFilter = !!(search || fClient || fZone || fCity || fStore || fLab || fStatus || fApprove || fDateRange?.from);
   const activeFilterCount = [fClient, fZone, fCity, fStore, fLab, fStatus, fApprove].filter(Boolean).length + (fDateRange?.from ? 1 : 0);
 
   /* ── booking map ── */
@@ -366,6 +375,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
   // always show the count for each bucket within the current scope.
   const baseFiltered = useMemo(() => {
     if (!candidates) return [];
+    // Free-text search is applied by the backend; the rest narrow client-side.
     return candidates.filter((c) => {
       if (fClient && c.clientId !== fClient) return false;
       if (fZone && c.store?.city?.zone?.id !== fZone) return false;
@@ -389,18 +399,8 @@ function AdminDashboard({ firstName }: { firstName: string }) {
     [baseFiltered, fStatus, bookingMap],
   );
 
-  // Count per status bucket (within the non-status filters).
-  const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    baseFiltered.forEach((c) => {
-      const b = statusBucket(bookingMap.get(c.id));
-      counts[b] = (counts[b] ?? 0) + 1;
-    });
-    return counts;
-  }, [baseFiltered, bookingMap]);
-
   const { page, setPage, totalPages, pageItems } = usePagination(filtered, {
-    resetKey: `${fClient}|${fZone}|${fCity}|${fStore}|${fLab}|${fStatus}|${fApprove}|${fDateRange?.from?.toISOString() ?? ''}|${fDateRange?.to?.toISOString() ?? ''}`,
+    resetKey: `${search}|${fClient}|${fZone}|${fCity}|${fStore}|${fLab}|${fStatus}|${fApprove}|${fDateRange?.from?.toISOString() ?? ''}|${fDateRange?.to?.toISOString() ?? ''}`,
   });
 
   /* ── stats ── */
@@ -409,7 +409,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
   const totalPending = filtered.length - totalBooked;
 
   const [uploadTarget, setUploadTarget] = useState<{ bookingId: string; candidateName: string; tests: string[] } | null>(null);
-  const [editReportTarget, setEditReportTarget] = useState<{ report: Report; candidateName: string } | null>(null);
+  const [reportTarget, setReportTarget] = useState<{ report: Report; candidateName: string; tests: string[] } | null>(null);
   const [rescheduleTarget, setRescheduleTarget] = useState<{ booking: Booking; candidateName: string } | null>(null);
 
   const th = 'text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap';
@@ -448,27 +448,6 @@ function AdminDashboard({ firstName }: { firstName: string }) {
             <StatPill label="Approved" value={totalApproved} color="bg-sky-400/20 text-sky-100" />
           </div>
         </div>
-      </div>
-
-      {/* ── Booking status breakdown (click to filter) ── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {STATUS_OPTIONS.filter((o) => o.value !== ALL).map((o) => {
-          const active = fStatus === o.value;
-          return (
-            <button
-              key={o.value}
-              onClick={() => setFStatus(active ? ALL : o.value)}
-              className={`rounded-2xl border px-4 py-3 text-left transition-colors ${
-                active
-                  ? 'border-primary-300 bg-primary-50 ring-1 ring-primary-200'
-                  : 'border-border bg-surface hover:bg-slate-50'
-              }`}
-            >
-              <p className="text-2xl font-bold text-slate-900 leading-none">{statusCounts[o.value] ?? 0}</p>
-              <p className={`text-xs font-medium mt-1.5 ${active ? 'text-primary-700' : 'text-slate-500'}`}>{o.label}</p>
-            </button>
-          );
-        })}
       </div>
 
       {/* ── Filters ── */}
@@ -548,7 +527,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
       {/* ── Candidate table ── */}
       <div className="rounded-2xl border border-border bg-surface shadow-card overflow-hidden">
         {/* table header */}
-        <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-border">
+        <div className="flex flex-col gap-3 px-6 py-4 border-b border-border sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="font-semibold text-slate-900">Candidates</p>
             <p className="text-xs text-slate-400 mt-0.5">
@@ -558,6 +537,13 @@ function AdminDashboard({ firstName }: { firstName: string }) {
               }
             </p>
           </div>
+          <SearchInput
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onClear={() => setSearch('')}
+            placeholder="Search name or emp. code…"
+            className="w-full sm:w-72"
+          />
         </div>
 
         {isLoading && <SkeletonTable rows={8} />}
@@ -746,11 +732,20 @@ function AdminDashboard({ firstName }: { firstName: string }) {
                               </span>
                               {(() => {
                                 const report = booking && reportMap.get(booking.id);
-                                return report ? (
-                                  <Button size="sm" variant="ghost" onClick={() => setEditReportTarget({ report, candidateName: c.name })}>
-                                    Edit
-                                  </Button>
-                                ) : null;
+                                if (!report) return null;
+                                const tests = booking?.panel?.bundledTest?.testsIncluded ?? [];
+                                return (
+                                  <>
+                                    {report.files?.length ? (
+                                      <Button size="sm" variant="ghost" onClick={() => downloadReportFiles(report.files!)}>
+                                        Download
+                                      </Button>
+                                    ) : null}
+                                    <Button size="sm" variant="outline" onClick={() => setReportTarget({ report, candidateName: c.name, tests })}>
+                                      View / Manage
+                                    </Button>
+                                  </>
+                                );
                               })()}
                             </div>
                           ) : booking ? (
@@ -815,12 +810,14 @@ function AdminDashboard({ firstName }: { firstName: string }) {
         />
       )}
 
-      {editReportTarget && (
-        <EditReportModal
-          open={!!editReportTarget}
-          onClose={() => setEditReportTarget(null)}
-          report={editReportTarget.report}
-          candidateName={editReportTarget.candidateName}
+      {reportTarget && (
+        <ReportManagerModal
+          key={reportTarget.report.id}
+          open={!!reportTarget}
+          onClose={() => setReportTarget(null)}
+          report={reportTarget.report}
+          candidateName={reportTarget.candidateName}
+          tests={reportTarget.tests}
         />
       )}
     </div>

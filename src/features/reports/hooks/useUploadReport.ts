@@ -21,12 +21,24 @@ export const useCreateReport = () => {
   });
 };
 
-/** Update fitness status / remarks on an existing report. */
+/** Update an existing report — metadata and/or its files. */
 export const useUpdateReport = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateReportInput }) =>
       reportService.update(id, input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.bookings.all });
+      qc.invalidateQueries({ queryKey: queryKeys.reports.all });
+    },
+  });
+};
+
+/** Delete a report entirely (reverts the booking so it can be re-uploaded). */
+export const useDeleteReport = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => reportService.remove(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.bookings.all });
       qc.invalidateQueries({ queryKey: queryKeys.reports.all });

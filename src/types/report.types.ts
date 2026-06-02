@@ -57,12 +57,24 @@ export interface CreateReportInput {
   remarks?: string;
 }
 
+/** Re-tag an existing report file (its "Uploaded for" tests). */
+export interface UpdateReportFileInput {
+  id: string;
+  testsCovered: string[];
+}
+
 export interface UpdateReportInput {
   fitnessStatus?: FitnessStatus;
   remarks?: string;
   labInternalRef?: string;
   isInsure?: boolean;
   approvalStatus?: boolean;
+  /** New files to attach (already uploaded via the upload endpoint). */
+  addFiles?: ReportFileInput[];
+  /** Ids of existing report files to remove. */
+  removeFileIds?: string[];
+  /** Re-tag existing files. */
+  fileUpdates?: UpdateReportFileInput[];
 }
 
 export const FITNESS_VARIANT: Record<FitnessStatus, 'success' | 'danger' | 'warning'> = {

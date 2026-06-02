@@ -29,6 +29,11 @@ export const reportService = {
     return res.data.data;
   },
 
+  remove: async (id: string): Promise<{ id: string; deleted: boolean }> => {
+    const res = await api.delete<ApiResponse<{ id: string; deleted: boolean }>>(`/reports/${id}`);
+    return res.data.data;
+  },
+
   getAll: async (): Promise<Report[]> => {
     const res = await api.get<ApiResponse<Report[]>>('/reports');
     return res.data.data;
