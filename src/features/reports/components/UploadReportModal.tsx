@@ -58,6 +58,7 @@ export function UploadReportModal({ open, onClose, bookingId, candidateName, tes
   const [labInternalRef, setLabInternalRef] = useState('');
   const [isInsure, setIsInsure] = useState('');
   const [approvalStatus, setApprovalStatus] = useState(false);
+  const [remarks, setRemarks] = useState('');
   const [apiError, setApiError] = useState('');
 
   const uploadFiles = useUploadReportFiles();
@@ -69,6 +70,7 @@ export function UploadReportModal({ open, onClose, bookingId, candidateName, tes
     setLabInternalRef('');
     setIsInsure('');
     setApprovalStatus(false);
+    setRemarks('');
     setApiError('');
     keySeq.current = 0;
   };
@@ -151,6 +153,7 @@ export function UploadReportModal({ open, onClose, bookingId, candidateName, tes
         labInternalRef: labInternalRef.trim() || undefined,
         isInsure: isInsure === 'yes',
         approvalStatus,
+        remarks: remarks.trim() || undefined,
       });
       handleClose();
     } catch (err) {
@@ -262,6 +265,18 @@ export function UploadReportModal({ open, onClose, bookingId, candidateName, tes
             value={fitnessStatus}
             onChange={(v) => setFitnessStatus(v as FitnessStatus)}
           />
+          <div className="sm:col-span-2">
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              Reason / Remarks
+            </label>
+            <textarea
+              rows={3}
+              placeholder="Optional — reason for fitness status, observations, etc."
+              value={remarks}
+              onChange={(e) => setRemarks(e.target.value)}
+              className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+            />
+          </div>
         </div>
       </div>
     </Modal>
