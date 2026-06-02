@@ -11,7 +11,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { format } from 'date-fns';
 import type { CandidateType } from '../../types/candidate.types';
-import { bookingStatusLabel, bookingStatusVariant } from '../../types/booking.types';
+import { bookingStatusLabel, bookingStatusVariant, isSchedulePassed } from '../../types/booking.types';
 
 const typeVariant: Record<CandidateType, 'primary' | 'success' | 'warning'> = {
   NEW_JOINER: 'success',
@@ -94,15 +94,9 @@ export function CandidateDetailPage() {
 
   const isBooked = !!booking;
 
-  // Once the scheduled date has passed (and it's still just SCHEDULED), the
-  // client can request a reschedule from their own panel.
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const schedulePassed =
-    !!booking &&
-    booking.status === 'SCHEDULED' &&
-    !!booking.scheduledDate &&
-    new Date(booking.scheduledDate) < startOfToday;
+  // Once the scheduled date has passed (and the candidate still hasn't
+  // visited), the client can request a reschedule from their own panel.
+  const schedulePassed = isSchedulePassed(booking);
 
   return (
     <div className="space-y-5 animate-fade-in">

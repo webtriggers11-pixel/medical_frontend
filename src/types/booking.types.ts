@@ -63,6 +63,8 @@ export interface BookingScheduleChange {
   newDate: string | null;
   newTimeSlot: string | null;
   reason: string | null;
+  /** User id who made this change — the client (booking owner) or an admin. */
+  changedBy: string | null;
   createdAt: string;
 }
 
@@ -133,27 +135,53 @@ export const STATUS_VARIANT: Record<BookingStatus, 'default' | 'primary' | 'succ
 
 type BookingStatusBadge = 'default' | 'primary' | 'success' | 'warning' | 'danger' | 'info';
 
-/** True when a SCHEDULED booking has been rescheduled at least once. */
+/**
+ * True while a reschedule request is awaiting the admin — i.e. the booking is
+ * SCHEDULED and the *most recent* schedule change was made by the client (the
+ * booking owner). Once an admin reschedules, the latest change is by the admin
+ * (changedBy ≠ clientId) so the booking resolves back to a plain "Scheduled".
+ *
+ * scheduleHistory is returned oldest→newest, so the last item is the latest.
+ */
 export function isRescheduled(
-  booking?: { status: BookingStatus; scheduleHistory?: { id: string }[] } | null,
+  booking?: {
+    status: BookingStatus;
+    clientId: string;
+    scheduleHistory?: { changedBy: string | null }[];
+  } | null,
 ): boolean {
-  return (
-    !!booking &&
-    booking.status === 'SCHEDULED' &&
-    (booking.scheduleHistory?.length ?? 0) > 0
-  );
+  if (!booking || booking.status !== 'SCHEDULED') return false;
+  const history = booking.scheduleHistory ?? [];
+  const last = history[history.length - 1];
+  return !!last && last.changedBy === booking.clientId;
 }
 
-/** Display label for a booking — "Rescheduled" for rescheduled bookings, else the raw status label. */
-export function bookingStatusLabel(
-  booking: { status: BookingStatus; scheduleHistory?: { id: string }[] },
-): string {
+/**
+ * True when a booking's scheduled date has passed and the candidate still
+ * hasn't visited (status is still SCHEDULED). In this state the client may
+ * request a reschedule from their own portal.
+ */
+export function isSchedulePassed(
+  booking?: { status: BookingStatus; scheduledDate: string | null } | null,
+): boolean {
+  if (!booking || booking.status !== 'SCHEDULED' || !booking.scheduledDate) return false;
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  return new Date(booking.scheduledDate) < startOfToday;
+}
+
+type RescheduleAware = {
+  status: BookingStatus;
+  clientId: string;
+  scheduleHistory?: { changedBy: string | null }[];
+};
+
+/** Display label for a booking — "Rescheduled" while a client request is pending, else the raw status label. */
+export function bookingStatusLabel(booking: RescheduleAware): string {
   return isRescheduled(booking) ? 'Rescheduled' : STATUS_LABEL[booking.status];
 }
 
-/** Badge variant for a booking — distinct colour for rescheduled, else the raw status variant. */
-export function bookingStatusVariant(
-  booking: { status: BookingStatus; scheduleHistory?: { id: string }[] },
-): BookingStatusBadge {
+/** Badge variant for a booking — distinct colour for a pending reschedule, else the raw status variant. */
+export function bookingStatusVariant(booking: RescheduleAware): BookingStatusBadge {
   return isRescheduled(booking) ? 'warning' : STATUS_VARIANT[booking.status];
 }

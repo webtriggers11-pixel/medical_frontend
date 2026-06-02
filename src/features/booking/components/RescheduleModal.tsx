@@ -18,9 +18,10 @@ interface Props {
 
 export function RescheduleModal({ open, onClose, booking, candidateName }: Props) {
   const reschedule = useRescheduleBooking();
-  const [date, setDate] = useState<Date | undefined>(
-    booking.scheduledDate ? new Date(booking.scheduledDate) : undefined,
-  );
+  // Start empty so the picker opens on the current month with future dates
+  // selectable. Pre-filling the old (often past-due) date would open the
+  // calendar on a fully-disabled past month and look like "all dates disabled".
+  const [date, setDate] = useState<Date | undefined>(undefined);
   const [slot, setSlot] = useState(booking.timeSlot ?? '');
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');

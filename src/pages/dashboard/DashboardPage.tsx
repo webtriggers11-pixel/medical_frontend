@@ -20,7 +20,7 @@ import { UploadReportModal } from '../../features/reports/components/UploadRepor
 import { EditReportModal } from '../../features/reports/components/EditReportModal';
 import { useReports } from '../../features/reports/hooks/useReports';
 import type { Booking } from '../../types/booking.types';
-import { bookingStatusLabel, bookingStatusVariant } from '../../types/booking.types';
+import { bookingStatusLabel, bookingStatusVariant, isRescheduled } from '../../types/booking.types';
 import type { Report } from '../../types/report.types';
 
 /* ── client (USER) dashboard — dummy data for now ─────────────────────── */
@@ -297,12 +297,11 @@ const STATUS_OPTIONS = [
 ];
 
 /** Map a candidate's latest booking (or none) to a status filter bucket. */
-function statusBucket(booking?: { status: string; scheduleHistory?: { id: string }[] }): string {
+function statusBucket(booking?: Booking): string {
   if (!booking) return 'APPT_REQ';
-  const rescheduled = (booking.scheduleHistory?.length ?? 0) > 0;
   switch (booking.status) {
     case 'SCHEDULED':
-      return rescheduled ? 'RESCHEDULE' : 'SCHEDULE';
+      return isRescheduled(booking) ? 'RESCHEDULE' : 'SCHEDULE';
     case 'CANCELLED':
       return 'RESCHEDULE';
     case 'VISITED':
@@ -672,8 +671,8 @@ function AdminDashboard({ firstName }: { firstName: string }) {
                               {new Date(c.appointmentDate).toLocaleDateString('en-IN')}
                             </p>
                           )}
-                          {booking?.status === 'SCHEDULED' ? (
-                            <Button size="sm" variant="outline" onClick={() => setRescheduleTarget({ booking, candidateName: c.name })}>
+                          {isRescheduled(booking) ? (
+                            <Button size="sm" variant="outline" onClick={() => setRescheduleTarget({ booking: booking!, candidateName: c.name })}>
                               Reschedule
                             </Button>
                           ) : !booking || booking.status === 'APPOINTMENT_REQUESTED' || booking.status === 'CANCELLED' ? (
