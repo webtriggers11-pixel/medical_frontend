@@ -17,8 +17,11 @@ import { Switch } from '../../components/ui/Switch';
 import { useBookings } from '../../features/booking/hooks/useBookings';
 import { RescheduleModal } from '../../features/booking/components/RescheduleModal';
 import { UploadReportModal } from '../../features/reports/components/UploadReportModal';
+import { EditReportModal } from '../../features/reports/components/EditReportModal';
+import { useReports } from '../../features/reports/hooks/useReports';
 import type { Booking } from '../../types/booking.types';
 import { bookingStatusLabel, bookingStatusVariant } from '../../types/booking.types';
+import type { Report } from '../../types/report.types';
 
 /* ── client (USER) dashboard — dummy data for now ─────────────────────── */
 
@@ -320,6 +323,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
   const navigate = useNavigate();
   const { data: candidates, isLoading, error } = useCandidates();
   const { data: bookings } = useBookings();
+  const { data: reports } = useReports();
   const setApproval = useSetCandidateApproval();
 
   /* ── filters ── */
@@ -343,6 +347,13 @@ function AdminDashboard({ firstName }: { firstName: string }) {
     bookings?.forEach((b) => { const ex = m.get(b.candidateId); if (!ex || new Date(b.createdAt) > new Date(ex.createdAt)) m.set(b.candidateId, b); });
     return m;
   }, [bookings]);
+
+  /* ── report map — keyed by bookingId ── */
+  const reportMap = useMemo(() => {
+    const m = new Map<string, Report>();
+    reports?.forEach((r) => m.set(r.bookingId, r));
+    return m;
+  }, [reports]);
 
   /* ── derived options ── */
   const clientOpts = useMemo(() => { const s = new Map<string, string>(); candidates?.forEach((c) => { if (c.client) s.set(c.clientId, c.client.name ?? c.client.email); }); return [{ value: ALL, label: 'All clients' }, ...Array.from(s, ([v, l]) => ({ value: v, label: l }))]; }, [candidates]);
@@ -399,6 +410,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
   const totalPending = filtered.length - totalBooked;
 
   const [uploadTarget, setUploadTarget] = useState<{ bookingId: string; candidateName: string; tests: string[] } | null>(null);
+  const [editReportTarget, setEditReportTarget] = useState<{ report: Report; candidateName: string } | null>(null);
   const [rescheduleTarget, setRescheduleTarget] = useState<{ booking: Booking; candidateName: string } | null>(null);
 
   const th = 'text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap';
@@ -728,10 +740,20 @@ function AdminDashboard({ firstName }: { firstName: string }) {
                         {/* Report */}
                         <td className="px-4 py-3.5">
                           {booking?.status === 'REPORT_UPLOADED' || booking?.status === 'FIT' || booking?.status === 'UNFIT' ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                              Uploaded
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                Uploaded
+                              </span>
+                              {(() => {
+                                const report = booking && reportMap.get(booking.id);
+                                return report ? (
+                                  <Button size="sm" variant="ghost" onClick={() => setEditReportTarget({ report, candidateName: c.name })}>
+                                    Edit
+                                  </Button>
+                                ) : null;
+                              })()}
+                            </div>
                           ) : booking ? (
                             <Button size="sm" variant="outline" onClick={() => setUploadTarget({ bookingId: booking.id, candidateName: c.name, tests: booking.panel?.bundledTest?.testsIncluded ?? [] })}>
                               Upload
@@ -791,6 +813,15 @@ function AdminDashboard({ firstName }: { firstName: string }) {
           onClose={() => setRescheduleTarget(null)}
           booking={rescheduleTarget.booking}
           candidateName={rescheduleTarget.candidateName}
+        />
+      )}
+
+      {editReportTarget && (
+        <EditReportModal
+          open={!!editReportTarget}
+          onClose={() => setEditReportTarget(null)}
+          report={editReportTarget.report}
+          candidateName={editReportTarget.candidateName}
         />
       )}
     </div>

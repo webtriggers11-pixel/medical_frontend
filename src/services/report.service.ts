@@ -1,6 +1,6 @@
 import api from '../api/axios.instance';
 import type { ApiResponse } from '../types/auth.types';
-import type { Report, CreateReportInput, UploadedFile } from '../types/report.types';
+import type { Report, CreateReportInput, UpdateReportInput, UploadedFile } from '../types/report.types';
 
 /** Report files are stored as paths like `/uploads/reports/x.pdf`; absolute URLs
  *  (e.g. legacy Google Drive links) are returned as-is. */
@@ -21,6 +21,11 @@ export const reportService = {
 
   create: async (input: CreateReportInput): Promise<Report> => {
     const res = await api.post<ApiResponse<Report>>('/reports', input);
+    return res.data.data;
+  },
+
+  update: async (id: string, input: UpdateReportInput): Promise<Report> => {
+    const res = await api.patch<ApiResponse<Report>>(`/reports/${id}`, input);
     return res.data.data;
   },
 

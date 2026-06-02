@@ -57,6 +57,14 @@ export interface CreateReportInput {
   remarks?: string;
 }
 
+export interface UpdateReportInput {
+  fitnessStatus?: FitnessStatus;
+  remarks?: string;
+  labInternalRef?: string;
+  isInsure?: boolean;
+  approvalStatus?: boolean;
+}
+
 export const FITNESS_VARIANT: Record<FitnessStatus, 'success' | 'danger' | 'warning'> = {
   FIT: 'success',
   UNFIT: 'danger',
