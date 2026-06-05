@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth.store';
 import { useUIStore } from '../../store/ui.store';
 import { roleLabel } from '../../config/roles';
+import { useInstallPrompt } from '../../hooks/useInstallPrompt';
 import type { Role } from '../../types/auth.types';
 
 interface NavItem {
@@ -119,6 +120,8 @@ const navItems: NavItem[] = [
 export function Sidebar() {
   const user = useAuthStore((s) => s.user);
   const { sidebarCollapsed, setSidebarCollapsed } = useUIStore();
+  const { canInstall, isInstalled, install } = useInstallPrompt();
+  const isAdmin = user?.role === 'ADMIN';
 
   const filteredItems = navItems.filter(
     (item) => !item.roles || (user?.role && item.roles.includes(user.role))
@@ -203,6 +206,40 @@ export function Sidebar() {
             </NavLink>
           ))}
         </nav>
+
+        {/* Install App — admin only */}
+        {isAdmin && (canInstall || isInstalled) && (
+          <div className={`px-3 pb-2 shrink-0 ${sidebarCollapsed ? 'lg:px-2' : ''}`}>
+            {isInstalled ? (
+              <div
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-emerald-600 ${
+                  sidebarCollapsed ? 'lg:justify-center' : ''
+                }`}
+              >
+                <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className={`whitespace-nowrap text-xs font-medium ${sidebarCollapsed ? 'lg:hidden' : ''}`}>
+                  App installed
+                </span>
+              </div>
+            ) : (
+              <button
+                onClick={install}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-primary-50 hover:text-primary-700 transition-all duration-200 ${
+                  sidebarCollapsed ? 'lg:justify-center' : ''
+                }`}
+              >
+                <svg className="w-5 h-5 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                <span className={`whitespace-nowrap ${sidebarCollapsed ? 'lg:hidden' : ''}`}>
+                  Install App
+                </span>
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Footer */}
         <div className={`border-t border-border p-4 shrink-0 ${sidebarCollapsed ? 'lg:px-2' : ''}`}>
