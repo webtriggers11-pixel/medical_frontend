@@ -575,6 +575,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
               <table className="w-max min-w-full text-sm">
                 <thead className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-border">
                   <tr>
+                    <th className={th}>ID</th>
                     <th className={th}>Candidate</th>
                     <th className={th}>Emp. Code</th>
                     <th className={th}>Mobile</th>
@@ -585,6 +586,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
                     <th className={th}>DOJ</th>
                     <th className={th}>Appointment</th>
                     <th className={th}>Visit Time</th>
+                    <th className={th}>Booking ID</th>
                     <th className={th}>Requested</th>
                     <th className={th}>Scheduled</th>
                     <th className={th}>Lab Booked</th>
@@ -600,6 +602,11 @@ function AdminDashboard({ firstName }: { firstName: string }) {
                     const isBooked = !!booking;
                     return (
                       <tr key={c.id} className={`transition-colors group ${isBooked ? 'hover:bg-emerald-50/30' : 'hover:bg-primary-50/20'}`}>
+
+                        {/* Candidate ID */}
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          <span className="text-xs font-mono font-semibold text-slate-400">{c.candidateId ?? '—'}</span>
+                        </td>
 
                         {/* Candidate */}
                         <td className="px-4 py-3.5">
@@ -682,6 +689,13 @@ function AdminDashboard({ firstName }: { firstName: string }) {
                               </p>
                             </div>
                           ) : <span className="text-slate-300 text-xs">—</span>}
+                        </td>
+
+                        {/* Booking ID */}
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          {booking?.bookingId
+                            ? <span className="text-xs font-mono font-semibold text-slate-400">{booking.bookingId}</span>
+                            : <span className="text-slate-300 text-xs">—</span>}
                         </td>
 
                         {/* Requested date */}

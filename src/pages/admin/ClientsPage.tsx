@@ -163,6 +163,7 @@ export function ClientsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">ID</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Client</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Mobile</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
@@ -178,6 +179,9 @@ export function ClientsPage() {
                     className="group hover:bg-slate-50/70 transition-colors cursor-pointer"
                     onClick={() => navigate(`/admin/clients/${client.id}`)}
                   >
+                    <td className="px-5 py-3.5 whitespace-nowrap">
+                      <span className="text-xs font-mono font-semibold text-slate-400">{client.clientId ?? '—'}</span>
+                    </td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
                         <Avatar name={client.name ?? client.email} size="sm" />

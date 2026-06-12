@@ -2,6 +2,7 @@ import type { Role } from './auth.types';
 
 export interface UserRecord {
   id: string;
+  clientId: string | null;
   email: string;
   name: string | null;
   mobile: string | null;

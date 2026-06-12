@@ -2,6 +2,7 @@ export type TestMasterStatus = 'ACTIVE' | 'INACTIVE';
 
 export interface TestMaster {
   id: string;
+  testId: string | null;
   name: string;
   description: string | null;
   status: TestMasterStatus;

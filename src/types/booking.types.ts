@@ -24,6 +24,7 @@ export interface Booking {
   createdAt: string;
   candidate?: {
     id: string;
+    candidateId: string | null;
     name: string;
     employeeCode: string | null;
     mobile: string;

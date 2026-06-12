@@ -61,6 +61,7 @@ export function PanelsPage() {
             <table className="w-max min-w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-slate-50/60">
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-400 uppercase tracking-wider whitespace-nowrap">ID</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Panel</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Timing</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Lab</th>
@@ -77,6 +78,9 @@ export function PanelsPage() {
               <tbody className="divide-y divide-border">
                 {pageItems.map((p) => (
                   <tr key={p.id} className="hover:bg-slate-50/50 transition-colors align-top">
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <span className="text-xs font-mono font-semibold text-slate-400">{p.panelId ?? '—'}</span>
+                    </td>
                     {/* Panel name */}
                     <td className="px-5 py-4">
                       <p className="font-semibold text-slate-900 whitespace-nowrap">{p.name}</p>

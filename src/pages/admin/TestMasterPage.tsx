@@ -146,6 +146,7 @@ export function TestMasterPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-slate-50/60">
+                  <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">ID</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Test name</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Description</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
@@ -156,6 +157,9 @@ export function TestMasterPage() {
               <tbody className="divide-y divide-border">
                 {pageItems.map((test) => (
                   <tr key={test.id} className="group hover:bg-slate-50/70 transition-colors">
+                    <td className="px-5 py-3.5 whitespace-nowrap">
+                      <span className="text-xs font-mono font-semibold text-slate-400">{test.testId ?? '—'}</span>
+                    </td>
                     <td className="px-5 py-3.5">
                       <p className="font-medium text-slate-900">{test.name}</p>
                     </td>

@@ -9,6 +9,7 @@ export interface PanelTest {
 
 export interface Panel {
   id: string;
+  panelId: string | null;
   labId: string;
   bundledTestId: string | null;
   name: string;
