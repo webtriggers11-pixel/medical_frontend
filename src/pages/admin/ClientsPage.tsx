@@ -43,10 +43,10 @@ function AddClientModal({ open, onClose }: { open: boolean; onClose: () => void 
     setApiError('');
     try {
       await createClient.mutateAsync({
-        name: values.name || undefined,
+        name: values.name,
         email: values.email,
         password: values.password,
-        mobile: values.mobile || undefined,
+        mobile: values.mobile,
       });
       handleClose();
     } catch (err) {
@@ -69,7 +69,12 @@ function AddClientModal({ open, onClose }: { open: boolean; onClose: () => void 
     >
       <form id="client-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {apiError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>}
-        <Input label="Client name" {...register('name')} />
+        <Input
+          label="Client name"
+          required
+          {...register('name', { required: 'Required' })}
+          error={errors.name?.message}
+        />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
             label="Email"
@@ -80,7 +85,9 @@ function AddClientModal({ open, onClose }: { open: boolean; onClose: () => void 
           />
           <Input
             label="Mobile"
+            required
             {...register('mobile', {
+              required: 'Required',
               pattern: { value: /^\d{10}$/, message: 'Must be 10 digits' },
             })}
             error={errors.mobile?.message}

@@ -300,12 +300,14 @@ export function AddStorePage() {
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <Input
                         label="Store name"
+                        required
                         placeholder="e.g. Andheri Branch"
                         {...register('name', { required: 'Store name is required' })}
                         error={errors.name?.message}
                       />
                       <Input
                         label="Store code"
+                        required
                         placeholder="e.g. MUM-AND-001"
                         {...register('storeCode', { required: 'Store code is required' })}
                         error={errors.storeCode?.message}
@@ -313,6 +315,7 @@ export function AddStorePage() {
                     </div>
                     <Input
                       label="Address"
+                      required
                       placeholder="Full store address"
                       {...register('address', { required: 'Address is required' })}
                       error={errors.address?.message}
@@ -320,12 +323,14 @@ export function AddStorePage() {
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <Input
                         label="Store head name"
+                        required
                         placeholder="e.g. Rahul Sharma"
                         {...register('storeHeadName', { required: 'Store head name is required' })}
                         error={errors.storeHeadName?.message}
                       />
                       <Input
                         label="Store head mobile"
+                        required
                         placeholder="e.g. 9876543210"
                         {...register('storeHeadMobile', { required: 'Store head mobile is required' })}
                         error={errors.storeHeadMobile?.message}

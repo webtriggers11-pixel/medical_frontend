@@ -58,7 +58,7 @@ export function ReportsPage() {
       (c) =>
         !q ||
         c.name.toLowerCase().includes(q) ||
-        c.employeeCode.toLowerCase().includes(q) ||
+        (c.employeeCode ?? '').toLowerCase().includes(q) ||
         (c.store?.name ?? '').toLowerCase().includes(q),
     );
   }, [candidates, search]);
@@ -165,7 +165,7 @@ export function ReportsPage() {
                       </td>
                       <td className="px-5 py-4">
                         <p className="font-semibold text-slate-900 whitespace-nowrap">{c.name}</p>
-                        <p className="text-xs text-slate-400 font-mono">{c.employeeCode}</p>
+                        <p className="text-xs text-slate-400 font-mono">{c.employeeCode || '—'}</p>
                       </td>
                       <td className="px-5 py-4 text-slate-600 whitespace-nowrap">
                         {c.store?.name ?? '—'}

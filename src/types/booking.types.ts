@@ -25,7 +25,7 @@ export interface Booking {
   candidate?: {
     id: string;
     name: string;
-    employeeCode: string;
+    employeeCode: string | null;
     mobile: string;
     panNumber: string | null;
     gender: string;
@@ -73,7 +73,7 @@ export interface BookingRequest {
   id: string;
   candidateId: string | null;
   name: string;
-  employeeCode: string;
+  employeeCode: string | null;
   mobile: string;
   gender: string;
   age: number;

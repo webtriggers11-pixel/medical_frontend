@@ -7,15 +7,15 @@ export interface Candidate {
   storeId: string;
   clientId: string;
   name: string;
-  employeeCode: string;
+  employeeCode: string | null;
   mobile: string;
   gender: Gender;
   age: number;
   candidateType: CandidateType;
-  doj: string;
+  doj: string | null;
   appointmentDate: string | null;
-  pincode: string;
-  email: string;
+  pincode: string | null;
+  email: string | null;
   panNumber: string | null;
   isActive: boolean;
   isApproved: boolean;
@@ -35,7 +35,7 @@ export interface Candidate {
 export interface CreateCandidateInput {
   storeId: string;
   name: string;
-  employeeCode: string;
+  employeeCode?: string;
   mobile: string;
   gender: Gender;
   age: number;
@@ -43,7 +43,7 @@ export interface CreateCandidateInput {
   doj: string; // ISO date (YYYY-MM-DD)
   appointmentDate: string; // ISO date (YYYY-MM-DD), must be a future date
   pincode: string;
-  email: string;
+  email?: string;
   panNumber?: string;
 }
 

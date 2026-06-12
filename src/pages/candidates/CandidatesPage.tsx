@@ -104,7 +104,7 @@ export function CandidatesPage() {
     const q = search.toLowerCase();
     return (
       c.name.toLowerCase().includes(q) ||
-      c.employeeCode.toLowerCase().includes(q) ||
+      (c.employeeCode ?? '').toLowerCase().includes(q) ||
       c.mobile.includes(q) ||
       (c.email ?? '').toLowerCase().includes(q) ||
       (c.store?.name ?? '').toLowerCase().includes(q)
@@ -218,11 +218,11 @@ export function CandidatesPage() {
                               <p className="font-medium capitalize text-slate-900 transition-colors group-hover/name:text-primary-600 group-hover/name:underline">
                                 {c.name}
                               </p>
-                              <p className="text-xs text-slate-500">{c.email}</p>
+                              <p className="text-xs text-slate-500">{c.email || '—'}</p>
                             </div>
                           </div>
                         </td>
-                        <td className="px-5 py-3.5 text-slate-600">{c.employeeCode}</td>
+                        <td className="px-5 py-3.5 text-slate-600">{c.employeeCode || '—'}</td>
                         <td className="px-5 py-3.5 text-slate-600">{c.mobile}</td>
                         <td className="px-5 py-3.5">
                           <Badge variant={typeVariant[c.candidateType]} size="sm">{typeLabel[c.candidateType]}</Badge>

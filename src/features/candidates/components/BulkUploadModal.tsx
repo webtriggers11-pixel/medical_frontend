@@ -94,7 +94,7 @@ export function BulkUploadModal({ open, onClose }: BulkUploadModalProps) {
               <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">storeId</code> column, so candidates can go to different stores in one file. Upload a CSV with columns{' '}
               <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">zone, city, storeId, name, employeeCode, mobile, gender, age, candidateType, doj, appointmentDate, pincode, email, panNumber</code>.
               Dates use <code className="text-xs bg-slate-100 px-1 py-0.5 rounded">YYYY-MM-DD</code>, and <code className="text-xs bg-slate-100 px-1 py-0.5 rounded">appointmentDate</code> must be a future date.
-              All required except <code className="text-xs bg-slate-100 px-1 py-0.5 rounded">zone</code>, <code className="text-xs bg-slate-100 px-1 py-0.5 rounded">city</code> and <code className="text-xs bg-slate-100 px-1 py-0.5 rounded">panNumber</code>.{' '}
+              All required except <code className="text-xs bg-slate-100 px-1 py-0.5 rounded">zone</code>, <code className="text-xs bg-slate-100 px-1 py-0.5 rounded">city</code>, <code className="text-xs bg-slate-100 px-1 py-0.5 rounded">employeeCode</code>, <code className="text-xs bg-slate-100 px-1 py-0.5 rounded">email</code> and <code className="text-xs bg-slate-100 px-1 py-0.5 rounded">panNumber</code>.{' '}
               <button
                 type="button"
                 onClick={() => candidatesService.downloadTemplate()}

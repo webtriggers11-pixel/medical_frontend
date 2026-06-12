@@ -111,7 +111,7 @@ export function CandidateDetailPage() {
             <Avatar name={candidate.name} size="lg" />
             <div>
               <h1 className="text-xl font-bold capitalize text-slate-900">{candidate.name}</h1>
-              <p className="text-sm text-slate-500">{candidate.email}</p>
+              <p className="text-sm text-slate-500">{candidate.email || '—'}</p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Badge variant={typeVariant[candidate.candidateType]} size="sm">{typeLabel[candidate.candidateType]}</Badge>
                 {isBooked ? (
@@ -132,7 +132,7 @@ export function CandidateDetailPage() {
           </div>
           <div className="shrink-0 rounded-xl bg-slate-50 px-4 py-2 text-right">
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Emp. Code</p>
-            <p className="font-mono text-sm font-semibold text-slate-700">{candidate.employeeCode}</p>
+            <p className="font-mono text-sm font-semibold text-slate-700">{candidate.employeeCode || '—'}</p>
           </div>
         </div>
       </Card>
@@ -149,7 +149,7 @@ export function CandidateDetailPage() {
             <Field label="Age" value={candidate.age} />
             <Field label="Date of Joining" value={fmtDate(candidate.doj)} />
             <Field label="PAN" value={candidate.panNumber || '—'} />
-            <Field label="Pincode" value={candidate.pincode} />
+            <Field label="Pincode" value={candidate.pincode || '—'} />
             <Field label="Appointment" value={fmtDate(candidate.appointmentDate)} />
             <Field label="Added on" value={fmtDate(candidate.createdAt)} />
           </div>

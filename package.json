@@ -7,10 +7,12 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "tauri": "tauri"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.100.14",
+    "@tauri-apps/cli": "^2.11.2",
     "axios": "^1.16.1",
     "date-fns": "^4.3.0",
     "echarts": "^6.1.0",

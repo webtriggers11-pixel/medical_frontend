@@ -449,11 +449,11 @@ export function BookLabPage() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-5 py-3.5 font-mono text-xs text-slate-600 whitespace-nowrap">{c.employeeCode}</td>
+                          <td className="px-5 py-3.5 font-mono text-xs text-slate-600 whitespace-nowrap">{c.employeeCode || '—'}</td>
                           <td className="px-5 py-3.5 text-slate-600 whitespace-nowrap">{c.mobile}</td>
                           <td className="px-5 py-3.5"><Badge variant="default" size="sm">{c.gender.toLowerCase()}</Badge></td>
                           <td className="px-5 py-3.5"><Badge variant="primary" size="sm">{c.candidateType.replace('_', ' ').toLowerCase()}</Badge></td>
-                          <td className="px-5 py-3.5 text-xs text-slate-500 whitespace-nowrap">{new Date(c.doj).toLocaleDateString('en-IN')}</td>
+                          <td className="px-5 py-3.5 text-xs text-slate-500 whitespace-nowrap">{c.doj ? new Date(c.doj).toLocaleDateString('en-IN') : '—'}</td>
                           <td className="px-5 py-3.5">
                             {c.appointmentDate
                               ? <span className="text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">{format(new Date(c.appointmentDate), 'd MMM yyyy')}</span>

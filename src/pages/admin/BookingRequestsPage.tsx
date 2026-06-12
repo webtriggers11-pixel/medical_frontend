@@ -140,7 +140,7 @@ export function BookingRequestsPage() {
     const q = search.toLowerCase();
     return (
       r.name.toLowerCase().includes(q) ||
-      r.employeeCode.toLowerCase().includes(q) ||
+      (r.employeeCode ?? '').toLowerCase().includes(q) ||
       (r.client?.name ?? r.client?.email ?? '').toLowerCase().includes(q)
     );
   }) ?? [];
@@ -212,7 +212,7 @@ export function BookingRequestsPage() {
                     </td>
                     <td className="px-5 py-4">
                       <p className="font-medium text-slate-900">{r.name}</p>
-                      <p className="text-xs text-slate-400">{r.employeeCode}</p>
+                      <p className="text-xs text-slate-400">{r.employeeCode || '—'}</p>
                     </td>
                     <td className="px-5 py-4 text-slate-600">{r.client?.name ?? r.client?.email ?? '—'}</td>
                     <td className="px-5 py-4 text-slate-600">{r.store?.name ?? '—'}</td>

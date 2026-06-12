@@ -208,13 +208,17 @@ function LabModal({ open, onClose, editing }: { open: boolean; onClose: () => vo
           />
           <Input
             label="Address"
+            required
             placeholder="Street address, area, landmark"
-            {...register('address')}
+            {...register('address', { required: 'Required' })}
+            error={errors.address?.message}
           />
           <Input
             label="Pincode"
+            required
             placeholder="6-digit pincode"
             {...register('pincode', {
+              required: 'Required',
               pattern: { value: /^\d{6}$/, message: 'Must be 6 digits' },
             })}
             error={errors.pincode?.message}

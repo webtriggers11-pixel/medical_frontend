@@ -6,10 +6,11 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   hint?: string;
   icon?: ReactNode;
   iconRight?: ReactNode;
+  required?: boolean;
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, hint, icon, iconRight, className = '', id, ...props }, ref) => {
+  ({ label, error, hint, icon, iconRight, required, className = '', id, ...props }, ref) => {
     const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
 
     return (
@@ -17,6 +18,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label htmlFor={inputId} className="block text-sm font-medium text-slate-700">
             {label}
+            {required && <span className="text-danger ml-0.5">*</span>}
           </label>
         )}
         <div className="relative">

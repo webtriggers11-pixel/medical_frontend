@@ -614,7 +614,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
 
                         {/* Emp code */}
                         <td className="px-4 py-3.5 whitespace-nowrap">
-                          <span className="font-mono text-xs text-slate-600 bg-slate-100 px-2 py-0.5 rounded">{c.employeeCode}</span>
+                          <span className="font-mono text-xs text-slate-600 bg-slate-100 px-2 py-0.5 rounded">{c.employeeCode || '—'}</span>
                         </td>
 
                         {/* Mobile */}
@@ -647,7 +647,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
 
                         {/* DOJ */}
                         <td className="px-4 py-3.5 text-xs text-slate-500 whitespace-nowrap">
-                          {new Date(c.doj).toLocaleDateString('en-IN')}
+                          {c.doj ? new Date(c.doj).toLocaleDateString('en-IN') : '—'}
                         </td>
 
                         {/* Appointment + Book / Reschedule */}

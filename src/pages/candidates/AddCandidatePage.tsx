@@ -95,12 +95,11 @@ function validateLocation(f: FormState): Errors {
 function validatePersonal(f: FormState): Errors {
   const e: Errors = {};
   if (!f.name.trim()) e.name = 'Name is required';
-  if (!f.employeeCode.trim()) e.employeeCode = 'Employee code is required';
   if (!/^\d{10}$/.test(f.mobile.trim())) e.mobile = 'Enter a 10-digit mobile number';
   if (!f.gender) e.gender = 'Gender is required';
   const age = Number(f.age);
   if (!f.age.trim() || !Number.isInteger(age) || age < 18 || age > 100) e.age = 'Age must be 18–100';
-  if (!EMAIL_RE.test(f.email.trim())) e.email = 'Enter a valid email';
+  if (f.email.trim() && !EMAIL_RE.test(f.email.trim())) e.email = 'Enter a valid email';
   return e;
 }
 
@@ -209,7 +208,7 @@ export function AddCandidatePage() {
       await mutateAsync({
         storeId: form.storeId,
         name: form.name.trim(),
-        employeeCode: form.employeeCode.trim(),
+        employeeCode: form.employeeCode.trim() || undefined,
         mobile: form.mobile.trim(),
         gender: form.gender as Gender,
         age: Number(form.age),
@@ -217,7 +216,7 @@ export function AddCandidatePage() {
         doj: format(form.doj as Date, 'yyyy-MM-dd'),
         appointmentDate: format(form.appointmentDate as Date, 'yyyy-MM-dd'),
         pincode: form.pincode.trim(),
-        email: form.email.trim(),
+        email: form.email.trim() || undefined,
         panNumber: form.panNumber.trim().toUpperCase() || undefined,
       });
       navigate(candidatesPath);
@@ -342,12 +341,12 @@ export function AddCandidatePage() {
               {/* STEP 2 — PERSONAL */}
               {step === 1 && (
                 <div key="step-1" className="space-y-6 animate-slide-in-right">
-                  <StepHeading icon={UserIcon} title="Candidate details" subtitle="Who is the candidate? Add their personal and contact details." />
+                  <StepHeading icon={UserIcon} title="Candidate details" subtitle="Who is the candidate? Name, mobile, gender and age are required — the rest is optional." />
                   <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
                     <Input label="Name" required placeholder="Enter name" value={form.name} onChange={onInput('name')} error={errors.name} />
-                    <Input label="Employee Code" required placeholder="Enter employee code" value={form.employeeCode} onChange={onInput('employeeCode')} error={errors.employeeCode} />
+                    <Input label="Employee Code" placeholder="Enter employee code" value={form.employeeCode} onChange={onInput('employeeCode')} error={errors.employeeCode} />
                     <Input label="Mobile Number" required placeholder="9999999999" inputMode="numeric" maxLength={10} value={form.mobile} onChange={onInput('mobile')} error={errors.mobile} />
-                    <Input label="Email Address" required type="email" placeholder="Enter email address" value={form.email} onChange={onInput('email')} error={errors.email} />
+                    <Input label="Email Address" type="email" placeholder="Enter email address" value={form.email} onChange={onInput('email')} error={errors.email} />
                     <Combobox label="Gender" required placeholder="Select gender" options={GENDER_OPTIONS} value={form.gender} onChange={onPick('gender')} error={errors.gender} />
                     <Input label="Age" required placeholder="Enter age" inputMode="numeric" maxLength={3} value={form.age} onChange={onInput('age')} error={errors.age} />
                   </div>
@@ -357,7 +356,7 @@ export function AddCandidatePage() {
               {/* STEP 3 — EMPLOYMENT */}
               {step === 2 && (
                 <div key="step-2" className="space-y-6 animate-slide-in-right">
-                  <StepHeading icon={BriefcaseIcon} title="Employment & ID" subtitle="Location is locked in — add the job and ID details, then schedule the appointment." />
+                  <StepHeading icon={BriefcaseIcon} title="Employment & ID" subtitle="Location is locked in — add the candidate type, joining date and pincode. PAN is optional." />
 
                   <div className="grid grid-cols-1 gap-4 rounded-2xl border border-border/60 bg-slate-50/70 p-4 sm:grid-cols-3">
                     <LockedField label="Zone" value={selectedZone?.name ?? '—'} />
@@ -379,7 +378,7 @@ export function AddCandidatePage() {
               {/* STEP 4 — APPOINTMENT */}
               {step === 3 && (
                 <div key="step-3" className="space-y-6 animate-slide-in-right">
-                  <StepHeading icon={CalendarIcon} title="Schedule appointment" subtitle="Pick a date for the candidate's health checkup. This is optional — you can leave it blank and schedule later." />
+                  <StepHeading icon={CalendarIcon} title="Schedule appointment" subtitle="Pick a date for the candidate's health checkup — it must be tomorrow or later." />
 
                   <div className="grid grid-cols-1 gap-4 rounded-2xl border border-border/60 bg-slate-50/70 p-4 sm:grid-cols-3">
                     <LockedField label="Store" value={selectedStore?.name ?? '—'} />
