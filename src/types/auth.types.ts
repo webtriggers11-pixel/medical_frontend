@@ -7,6 +7,10 @@ export interface User {
   isActive: boolean;
   isEmailVerified: boolean;
   createdAt: string;
+  // Present on /auth/me; absent on the lighter login response.
+  clientId?: string | null;
+  name?: string | null;
+  mobile?: string | null;
 }
 
 export interface AuthState {

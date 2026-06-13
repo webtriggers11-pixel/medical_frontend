@@ -24,6 +24,7 @@ import { CandidatesPage } from '../pages/candidates/CandidatesPage';
 import { CandidateDetailPage } from '../pages/candidates/CandidateDetailPage';
 import { AddCandidatePage } from '../pages/candidates/AddCandidatePage';
 import { ReportsPage } from '../pages/reports/ReportsPage';
+import { ProfilePage } from '../pages/ProfilePage';
 import { ROLE_GROUPS } from '../config/roles';
 import { UnauthorizedPage } from '../pages/UnauthorizedPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
@@ -43,6 +44,8 @@ export const AppRouter = () => (
       <Route element={<ProtectedRoute />}>
         <Route element={<DashboardLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
+          {/* Available to both admin and client */}
+          <Route path="/profile" element={<ProfilePage />} />
 
           {/* Admin-only routes */}
           <Route element={<RoleRoute allowedRoles={ROLE_GROUPS.adminOnly} />}>
