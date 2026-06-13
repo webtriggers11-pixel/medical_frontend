@@ -311,7 +311,6 @@ export function CandidatesPage() {
                                     Lab
                                   </p>
                                   <p className="font-semibold text-slate-800">{booking.lab?.name ?? '—'}</p>
-                                  <p className="text-xs text-slate-500">{booking.lab?.contactMobile}</p>
                                   {booking.lab?.address && (
                                     <p className="mt-0.5 text-xs text-slate-500">{booking.lab.address}{booking.lab.pincode ? ` - ${booking.lab.pincode}` : ''}</p>
                                   )}

@@ -208,7 +208,6 @@ export function CandidateDetailPage() {
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-primary-500 mb-1">Lab</p>
               <p className="text-sm font-semibold text-slate-800">{booking.lab?.name ?? '—'}</p>
-              <p className="text-xs text-slate-500">{booking.lab?.contactMobile}</p>
               {booking.lab?.address && (
                 <p className="mt-0.5 text-xs text-slate-500">{booking.lab.address}{booking.lab.pincode ? ` - ${booking.lab.pincode}` : ''}</p>
               )}

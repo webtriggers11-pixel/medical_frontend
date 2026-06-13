@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth.store';
 import { Button } from '../../components/ui/Button';
-import { StatsCard } from '../../components/ui/StatsCard';
+import { StatTile } from '../../components/ui/StatTile';
 import { Card, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Avatar } from '../../components/ui/Avatar';
@@ -20,24 +20,34 @@ import { RescheduleModal } from '../../features/booking/components/RescheduleMod
 import { UploadReportModal } from '../../features/reports/components/UploadReportModal';
 import { ReportManagerModal } from '../../features/reports/components/ReportManagerModal';
 import { useReports } from '../../features/reports/hooks/useReports';
+import { useClientStats } from '../../features/stats/hooks/useStats';
 import { downloadReportFiles } from '../../features/reports/lib/fileDownload';
 import type { Booking } from '../../types/booking.types';
 import { bookingStatusLabel, bookingStatusVariant, isRescheduled } from '../../types/booking.types';
 import type { Report } from '../../types/report.types';
+import type { ClientStats } from '../../types/stats.types';
 
-/* ── client (USER) dashboard — dummy data for now ─────────────────────── */
-
-// Health-checkup pipeline, from active employees down to fit-certified.
-const PIPELINE: FunnelDatum[] = [
-  { name: 'Active Employed', value: 1248 },
-  { name: 'Appointment Requested', value: 920 },
-  { name: 'Scheduled', value: 640 },
-  { name: 'Visited', value: 470 },
-  { name: 'Report Uploaded', value: 300 },
-  { name: 'Fit Certified', value: 250 },
-];
+/* ── client (USER) dashboard ──────────────────────────────────────────── */
 
 const PIPELINE_COLORS = ['#4F46E5', '#6366F1', '#8B5CF6', '#A855F7', '#D6459F', '#EC6A88'];
+
+// Builds the health-checkup funnel from the client's real booking counts.
+// Each stage is cumulative — a candidate who's been "Visited" was also
+// "Scheduled", so later stages roll up into the earlier ones.
+function buildPipeline(stats: ClientStats): FunnelDatum[] {
+  const s = stats.bookings.byStatus;
+  const scheduled = s.SCHEDULED + s.VISITED + s.REPORT_UPLOADED + s.FIT + s.UNFIT;
+  const visited = s.VISITED + s.REPORT_UPLOADED + s.FIT + s.UNFIT;
+  const reported = s.REPORT_UPLOADED + s.FIT + s.UNFIT;
+  return [
+    { name: 'Active Candidates', value: stats.candidates.active },
+    { name: 'Appointment Requested', value: stats.candidates.withAppointment },
+    { name: 'Scheduled', value: scheduled },
+    { name: 'Visited', value: visited },
+    { name: 'Report Uploaded', value: reported },
+    { name: 'Fit Certified', value: s.FIT },
+  ];
+}
 
 const UsersIcon = (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -96,10 +106,12 @@ const MinimizeIcon = (
 
 // The funnel chart + its header — reused inline and in the maximized overlay.
 function PipelineChart({
+  data,
   maximized,
   onToggle,
   fill,
 }: {
+  data: FunnelDatum[];
   maximized: boolean;
   onToggle: () => void;
   fill?: boolean;
@@ -109,10 +121,9 @@ function PipelineChart({
       <CardHeader className="px-5 pt-5">
         <div>
           <CardTitle>Health checkup pipeline</CardTitle>
-          <p className="text-sm text-slate-500 mt-0.5">From active employees to fit certification</p>
+          <p className="text-sm text-slate-500 mt-0.5">From active candidates to fit certification</p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="default" size="sm">Sample data</Badge>
           <button
             type="button"
             onClick={onToggle}
@@ -125,7 +136,7 @@ function PipelineChart({
         </div>
       </CardHeader>
       <div className={fill ? 'flex-1 min-h-0 px-3 pb-3' : 'px-3 pb-4'}>
-        <FunnelChart data={PIPELINE} colors={PIPELINE_COLORS} height={fill ? '100%' : 380} />
+        <FunnelChart data={data} colors={PIPELINE_COLORS} height={fill ? '100%' : 380} />
       </div>
     </>
   );
@@ -134,6 +145,7 @@ function PipelineChart({
 function ClientDashboard({ firstName }: { firstName: string }) {
   const navigate = useNavigate();
   const [maximized, setMaximized] = useState(false);
+  const { data: stats, isLoading } = useClientStats();
 
   // Lock scroll + close on Escape while maximized.
   useEffect(() => {
@@ -149,6 +161,13 @@ function ClientDashboard({ firstName }: { firstName: string }) {
     };
   }, [maximized]);
 
+  const pipeline = stats ? buildPipeline(stats) : [];
+  const byStatus = stats?.bookings.byStatus;
+  // Reports still awaiting a result — uploaded but not yet certified fit/unfit.
+  const pendingReports = byStatus
+    ? byStatus.SCHEDULED + byStatus.VISITED + byStatus.REPORT_UPLOADED
+    : 0;
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Welcome header */}
@@ -159,39 +178,64 @@ function ClientDashboard({ firstName }: { firstName: string }) {
         <p className="text-slate-500 mt-1">Here's your employee health-checkup overview.</p>
       </div>
 
+      {isLoading || !stats ? (
+        <SkeletonTable rows={4} />
+      ) : (
+        <>
       {/* Stats grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-5">
-        <StatsCard
-          title="Total Active Employed"
-          value="1,248"
-          change={{ value: '4.2%', positive: true }}
-          iconBg="bg-primary-50"
-          iconColor="text-primary-600"
+        <StatTile
+          accent="primary"
+          title="Active Candidates"
+          value={stats.candidates.active.toLocaleString('en-IN')}
           icon={UsersIcon}
+          ratio={{ value: stats.candidates.active, total: stats.candidates.total, label: 'of total' }}
         />
-        <StatsCard
+        <StatTile
+          accent="sky"
           title="Scheduled Bookings"
-          value="86"
-          change={{ value: '12 this week', positive: true }}
-          iconBg="bg-sky-50"
-          iconColor="text-sky-600"
+          value={byStatus!.SCHEDULED}
           icon={CalendarIcon}
+          caption={`${stats.bookings.total} bookings all-time`}
         />
-        <StatsCard
+        <StatTile
+          accent="amber"
           title="Pending Reports"
-          value="32"
-          change={{ value: '5 overdue', positive: false }}
-          iconBg="bg-amber-50"
-          iconColor="text-amber-600"
+          value={pendingReports}
           icon={ClockDocIcon}
+          caption={`${stats.reports.total} uploaded so far`}
         />
-        <StatsCard
+        <StatTile
+          accent="emerald"
           title="Fit Certified"
-          value="940"
-          change={{ value: '75.3%', positive: true }}
-          iconBg="bg-emerald-50"
-          iconColor="text-emerald-600"
+          value={byStatus!.FIT}
           icon={BadgeCheckIcon}
+          ratio={{ value: byStatus!.FIT, total: stats.candidates.total, label: 'of candidates' }}
+        />
+      </div>
+
+      {/* Secondary stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-5">
+        <StatTile
+          accent="violet"
+          title="Stores"
+          value={stats.stores.total}
+          icon={StoreIcon}
+          caption="Your registered stores"
+        />
+        <StatTile
+          accent="teal"
+          title="Approved Candidates"
+          value={stats.candidates.approved}
+          icon={BadgeCheckIcon}
+          ratio={{ value: stats.candidates.approved, total: stats.candidates.total, label: 'approved' }}
+        />
+        <StatTile
+          accent="rose"
+          title="Awaiting Appointment"
+          value={Math.max(stats.candidates.active - stats.candidates.withAppointment, 0)}
+          icon={CalendarIcon}
+          caption="Active candidates without a date"
         />
       </div>
 
@@ -199,7 +243,7 @@ function ClientDashboard({ firstName }: { firstName: string }) {
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-5 lg:gap-6">
         {/* Funnel */}
         <Card padding="none" className="xl:col-span-3">
-          <PipelineChart maximized={false} onToggle={() => setMaximized(true)} />
+          <PipelineChart data={pipeline} maximized={false} onToggle={() => setMaximized(true)} />
         </Card>
 
         {/* Quick actions */}
@@ -235,9 +279,11 @@ function ClientDashboard({ firstName }: { firstName: string }) {
             onClick={() => setMaximized(false)}
           />
           <div className="relative z-10 flex flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-xl animate-scale-in">
-            <PipelineChart maximized onToggle={() => setMaximized(false)} fill />
+            <PipelineChart data={pipeline} maximized onToggle={() => setMaximized(false)} fill />
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );
