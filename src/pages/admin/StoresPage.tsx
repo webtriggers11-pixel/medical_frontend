@@ -289,7 +289,7 @@ export function StoresPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3">
-        <div className="w-52">
+        <div className="w-full sm:w-52">
           <Combobox
             label="Zone"
             options={zoneOptions}
@@ -301,7 +301,7 @@ export function StoresPage() {
             loading={isLoading}
           />
         </div>
-        <div className="w-52">
+        <div className="w-full sm:w-52">
           <Combobox
             label="City"
             options={cityOptions}
@@ -318,7 +318,7 @@ export function StoresPage() {
           onChange={(e) => setSearch(e.target.value)}
           onClear={() => setSearch('')}
           placeholder="Search by name or code..."
-          className="w-60"
+          className="w-full sm:w-60"
         />
         {hasFilters && (
           <Button variant="ghost" onClick={clearFilters}>Clear filters</Button>

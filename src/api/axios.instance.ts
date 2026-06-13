@@ -17,7 +17,12 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const url: string = error.config?.url ?? '';
+    // Auth endpoints (login, register, OTP, set-password) return 401 for bad
+    // credentials — let those errors reach the form instead of forcing a
+    // logout + redirect, which reloads the page and wipes the error message.
+    const isAuthRoute = url.includes('/auth/');
+    if (error.response?.status === 401 && !isAuthRoute) {
       useAuthStore.getState().logout();
       window.location.href = '/login';
     }

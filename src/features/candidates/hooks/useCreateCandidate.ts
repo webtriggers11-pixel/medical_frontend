@@ -8,6 +8,7 @@ export const useCreateCandidate = () => {
 
   return useMutation({
     mutationFn: (input: CreateCandidateInput) => candidatesService.create(input),
+    meta: { successMessage: 'Candidate created' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.candidates.all });
     },

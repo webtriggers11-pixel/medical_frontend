@@ -8,6 +8,7 @@ export const useBulkUploadCandidates = () => {
   return useMutation({
     mutationFn: ({ file }: { file: File }) =>
       candidatesService.bulkUpload(file),
+    meta: { successMessage: 'Candidates uploaded' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.candidates.all });
     },

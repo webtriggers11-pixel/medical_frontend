@@ -22,6 +22,7 @@ export const useSetCandidateApproval = () => {
   return useMutation({
     mutationFn: ({ id, isApproved }: { id: string; isApproved: boolean }) =>
       candidatesService.setApproval(id, isApproved),
+    meta: { successMessage: 'Candidate approval updated' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.candidates.all }),
   });
 };

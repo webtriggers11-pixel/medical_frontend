@@ -14,6 +14,7 @@ export const useCreateZone = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateZoneInput) => orgService.createZone(input),
+    meta: { successMessage: 'Zone created' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.org.zones }),
   });
 };
@@ -22,6 +23,7 @@ export const useUpdateZone = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, name }: { id: string; name: string }) => orgService.updateZone(id, { name }),
+    meta: { successMessage: 'Zone updated' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.org.zones }),
   });
 };
@@ -30,6 +32,7 @@ export const useDeleteZone = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => orgService.deleteZone(id),
+    meta: { successMessage: 'Zone deleted' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.org.zones }),
   });
 };
@@ -46,6 +49,7 @@ export const useCreateCity = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateCityInput) => orgService.createCity(input),
+    meta: { successMessage: 'City created' },
     onSuccess: (_data, vars) =>
       qc.invalidateQueries({ queryKey: queryKeys.org.cities(vars.zoneId) }),
   });
@@ -55,6 +59,7 @@ export const useUpdateCity = (zoneId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, name }: { id: string; name: string }) => orgService.updateCity(id, { name }),
+    meta: { successMessage: 'City updated' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.org.cities(zoneId) }),
   });
 };
@@ -63,6 +68,7 @@ export const useDeleteCity = (zoneId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => orgService.deleteCity(id),
+    meta: { successMessage: 'City deleted' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.org.cities(zoneId) }),
   });
 };
@@ -80,6 +86,7 @@ export const useCreateStore = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateStoreInput) => orgService.createStore(input),
+    meta: { successMessage: 'Store created' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.org.storesAll }),
   });
 };
@@ -89,6 +96,7 @@ export const useUpdateStore = () => {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: Partial<CreateStoreInput> }) =>
       orgService.updateStore(id, input),
+    meta: { successMessage: 'Store updated' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.org.storesAll }),
   });
 };
@@ -97,6 +105,7 @@ export const useDeleteStore = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => orgService.deleteStore(id),
+    meta: { successMessage: 'Store deleted' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.org.storesAll }),
   });
 };

@@ -8,6 +8,7 @@ export const useLogin = () => {
   return useMutation({
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       authService.login(email, password),
+    meta: { skipErrorToast: true },
     onSuccess: (data) => {
       setAuth(data.user, data.accessToken);
     },

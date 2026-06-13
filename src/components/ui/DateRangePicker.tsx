@@ -23,10 +23,13 @@ export function DateRangePicker({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  // One month on phones (two months ≈ 640px overflows a 375px screen).
+  const [narrow, setNarrow] = useState(false);
 
   const reposition = () => {
     const trigger = triggerRef.current;
     if (!trigger) return;
+    setNarrow(window.innerWidth < 640);
     const r = trigger.getBoundingClientRect();
     const pop = popoverRef.current;
     const ph = pop?.offsetHeight ?? 340;
@@ -109,14 +112,14 @@ export function DateRangePicker({
       {open && createPortal(
         <div
           ref={popoverRef}
-          style={{ position: 'fixed', top: coords?.top ?? -9999, left: coords?.left ?? -9999, zIndex: 9999, visibility: coords ? 'visible' : 'hidden' }}
-          className="rounded-2xl border border-border bg-surface shadow-xl p-3 animate-scale-in"
+          style={{ position: 'fixed', top: coords?.top ?? -9999, left: coords?.left ?? -9999, zIndex: 9999, visibility: coords ? 'visible' : 'hidden', maxWidth: 'calc(100vw - 16px)' }}
+          className="overflow-auto rounded-2xl border border-border bg-surface shadow-xl p-3 animate-scale-in"
         >
           <DayPicker
             mode="range"
             selected={value}
             onSelect={onChange}
-            numberOfMonths={2}
+            numberOfMonths={narrow ? 1 : 2}
             captionLayout="dropdown"
             startMonth={new Date(2024, 0)}
             endMonth={new Date(new Date().getFullYear() + 2, 11)}

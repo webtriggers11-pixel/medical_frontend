@@ -13,6 +13,7 @@ export const useCreatePanel = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreatePanelInput) => panelService.create(input),
+    meta: { successMessage: 'Panel created' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.panels.all }),
   });
 };
@@ -22,6 +23,7 @@ export const useUpdatePanel = () => {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdatePanelInput }) =>
       panelService.update(id, input),
+    meta: { successMessage: 'Panel updated' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.panels.all }),
   });
 };
@@ -30,6 +32,7 @@ export const useDeletePanel = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => panelService.remove(id),
+    meta: { successMessage: 'Panel deleted' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.panels.all }),
   });
 };
@@ -45,6 +48,7 @@ export const useSetPanelPricing = (panelId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: SetClientPricingInput) => panelService.setPricing(panelId, input),
+    meta: { successMessage: 'Pricing saved' },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.panels.all });
       qc.invalidateQueries({ queryKey: queryKeys.panels.pricing(panelId) });
@@ -56,6 +60,7 @@ export const useRemovePanelPricing = (panelId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (clientId: string) => panelService.removePricing(panelId, clientId),
+    meta: { successMessage: 'Pricing removed' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.panels.all }),
   });
 };

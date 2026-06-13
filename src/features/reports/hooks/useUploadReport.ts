@@ -14,6 +14,7 @@ export const useCreateReport = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateReportInput) => reportService.create(input),
+    meta: { successMessage: 'Report uploaded' },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.bookings.all });
       qc.invalidateQueries({ queryKey: queryKeys.reports.all });
@@ -27,6 +28,7 @@ export const useUpdateReport = () => {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateReportInput }) =>
       reportService.update(id, input),
+    meta: { successMessage: 'Report updated' },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.bookings.all });
       qc.invalidateQueries({ queryKey: queryKeys.reports.all });
@@ -39,6 +41,7 @@ export const useDeleteReport = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => reportService.remove(id),
+    meta: { successMessage: 'Report deleted' },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.bookings.all });
       qc.invalidateQueries({ queryKey: queryKeys.reports.all });

@@ -21,6 +21,7 @@ export const useCreateClient = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateClientInput) => usersService.create(input),
+    meta: { successMessage: 'Client created' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.users.all }),
   });
 };
@@ -30,6 +31,7 @@ export const useSetClientActive = () => {
   return useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
       usersService.setActive(id, isActive),
+    meta: { successMessage: 'Client status updated' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.users.all }),
   });
 };
@@ -38,12 +40,14 @@ export const useResetPassword = () =>
   useMutation({
     mutationFn: ({ id, password }: { id: string; password: string }) =>
       usersService.resetPassword(id, password),
+    meta: { successMessage: 'Password reset' },
   });
 
 export const useDeleteClient = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => usersService.remove(id),
+    meta: { successMessage: 'Client deleted' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.users.all }),
   });
 };

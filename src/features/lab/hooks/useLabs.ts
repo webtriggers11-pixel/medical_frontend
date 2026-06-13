@@ -10,6 +10,7 @@ export const useCreateLab = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateLabInput) => labService.create(input),
+    meta: { successMessage: 'Lab created' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.labs.all }),
   });
 };
@@ -19,6 +20,7 @@ export const useUpdateLab = () => {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateLabInput }) =>
       labService.update(id, input),
+    meta: { successMessage: 'Lab updated' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.labs.all }),
   });
 };
@@ -27,6 +29,7 @@ export const useDeleteLab = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => labService.remove(id),
+    meta: { successMessage: 'Lab deleted' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.labs.all }),
   });
 };
@@ -42,6 +45,7 @@ export const useCreateBundledTest = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateBundledTestInput) => labService.createBundledTest(input),
+    meta: { successMessage: 'Test package created' },
     onSuccess: (_data, vars) =>
       qc.invalidateQueries({ queryKey: queryKeys.labs.bundledTests(vars.labId) }),
   });
@@ -52,6 +56,7 @@ export const useUpdateBundledTest = (labId: string) => {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateBundledTestInput }) =>
       labService.updateBundledTest(id, input),
+    meta: { successMessage: 'Test package updated' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.labs.bundledTests(labId) }),
   });
 };
@@ -60,6 +65,7 @@ export const useDeleteBundledTest = (labId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => labService.deleteBundledTest(id),
+    meta: { successMessage: 'Test package deleted' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.labs.bundledTests(labId) }),
   });
 };

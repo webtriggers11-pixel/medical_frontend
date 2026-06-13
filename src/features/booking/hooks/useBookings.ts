@@ -21,6 +21,7 @@ export const useCreateBooking = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateBookingInput) => bookingService.create(input),
+    meta: { successMessage: 'Booking created' },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.bookings.all });
       qc.invalidateQueries({ queryKey: queryKeys.bookings.pending });
@@ -33,6 +34,7 @@ export const useUpdateBookingStatus = () => {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateBookingStatusInput }) =>
       bookingService.updateStatus(id, input),
+    meta: { successMessage: 'Booking updated' },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.bookings.all });
       qc.invalidateQueries({ queryKey: queryKeys.bookings.pending });
@@ -46,6 +48,7 @@ export const useRescheduleBooking = () => {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: RescheduleBookingInput }) =>
       bookingService.reschedule(id, input),
+    meta: { successMessage: 'Booking rescheduled' },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.bookings.all });
     },

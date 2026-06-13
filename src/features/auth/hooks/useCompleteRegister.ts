@@ -8,6 +8,7 @@ export const useCompleteRegister = () => {
   return useMutation({
     mutationFn: ({ setupToken, password }: { setupToken: string; password: string }) =>
       authService.completeRegister(setupToken, password),
+    meta: { skipErrorToast: true },
     onSuccess: (data) => {
       setAuth(data.user, data.accessToken);
     },

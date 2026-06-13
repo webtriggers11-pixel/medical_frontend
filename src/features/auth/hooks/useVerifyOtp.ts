@@ -5,4 +5,5 @@ export const useVerifyOtp = () =>
   useMutation({
     mutationFn: ({ email, otp }: { email: string; otp: string }) =>
       authService.verifyOtp(email, otp),
+    meta: { skipErrorToast: true },
   });

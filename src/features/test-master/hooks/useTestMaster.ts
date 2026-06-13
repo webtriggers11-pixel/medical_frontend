@@ -13,6 +13,7 @@ export const useCreateTestMaster = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateTestMasterInput) => testMasterService.create(input),
+    meta: { successMessage: 'Test created' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.testMasters.all }),
   });
 };
@@ -22,6 +23,7 @@ export const useUpdateTestMaster = () => {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateTestMasterInput }) =>
       testMasterService.update(id, input),
+    meta: { successMessage: 'Test updated' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.testMasters.all }),
   });
 };
@@ -30,6 +32,7 @@ export const useDeleteTestMaster = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => testMasterService.remove(id),
+    meta: { successMessage: 'Test deleted' },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.testMasters.all }),
   });
 };

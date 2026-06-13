@@ -302,7 +302,7 @@ export function ZoneCityPage() {
                     onChange={(e) => setCitySearch(e.target.value)}
                     onClear={() => setCitySearch('')}
                     placeholder="Search cities..."
-                    className="w-52"
+                    className="w-full sm:w-52"
                   />
                   <Button
                     size="sm"
