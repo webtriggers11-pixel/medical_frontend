@@ -486,12 +486,25 @@ function AdminDashboard({ firstName }: { firstName: string }) {
               {candidates?.length ?? 0} candidates across the platform
             </p>
           </div>
-          {/* stat pills */}
-          <div className="flex gap-2 flex-wrap">
-            <StatPill label="Total" value={candidates?.length ?? 0} color="bg-white/15 text-white" />
-            <StatPill label="Booked" value={totalBooked} color="bg-emerald-400/20 text-emerald-100" />
-            <StatPill label="Pending" value={totalPending} color="bg-amber-400/20 text-amber-100" />
-            <StatPill label="Approved" value={totalApproved} color="bg-sky-400/20 text-sky-100" />
+          <div className="flex flex-col items-start gap-3 sm:items-end">
+            {/* export */}
+            <button
+              type="button"
+              onClick={() => navigate('/admin/export')}
+              className="inline-flex items-center gap-2 rounded-xl bg-white/15 px-3.5 py-2 text-sm font-semibold text-white ring-1 ring-white/25 backdrop-blur-sm transition-colors hover:bg-white/25"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+              Export CSV
+            </button>
+            {/* stat pills */}
+            <div className="flex gap-2 flex-wrap">
+              <StatPill label="Total" value={candidates?.length ?? 0} color="bg-white/15 text-white" />
+              <StatPill label="Booked" value={totalBooked} color="bg-emerald-400/20 text-emerald-100" />
+              <StatPill label="Pending" value={totalPending} color="bg-amber-400/20 text-amber-100" />
+              <StatPill label="Approved" value={totalApproved} color="bg-sky-400/20 text-sky-100" />
+            </div>
           </div>
         </div>
       </div>

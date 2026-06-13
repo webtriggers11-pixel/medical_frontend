@@ -161,13 +161,14 @@ export function BookLabPage() {
   const confirmBook = async () => {
     if (!scheduleTarget) return;
     if (!scheduleDate) { setBookError('Please select a schedule date.'); return; }
+    if (!scheduleSlot) { setBookError('Please select a time slot.'); return; }
     const panelId = scheduleTarget;
     setBookError('');
     setBookingPanelId(panelId);
     try {
       const scheduledDate = format(scheduleDate, 'yyyy-MM-dd');
       for (const c of selectedCandidates) {
-        await createBooking.mutateAsync({ candidateId: c.id, panelId, scheduledDate, timeSlot: scheduleSlot || undefined });
+        await createBooking.mutateAsync({ candidateId: c.id, panelId, scheduledDate, timeSlot: scheduleSlot });
       }
       setBookedPanelIds((prev) => new Set([...prev, panelId]));
       setScheduleTarget(null);
@@ -669,12 +670,12 @@ export function BookLabPage() {
               required
               value={scheduleDate}
               onChange={setScheduleDate}
-              minDate={new Date()}
               placeholder="Select date"
             />
 
             <Combobox
               label="Time slot"
+              required
               placeholder="Select a time slot…"
               options={TIME_SLOTS.map((t) => ({ value: t, label: t }))}
               value={scheduleSlot}

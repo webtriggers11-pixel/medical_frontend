@@ -1,35 +1,37 @@
-import { NavLink } from 'react-router-dom';
+import { useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth.store';
 import { useUIStore } from '../../store/ui.store';
 import { roleLabel } from '../../config/roles';
 import { useInstallPrompt } from '../../hooks/useInstallPrompt';
 import type { Role } from '../../types/auth.types';
 
+interface NavChild {
+  label: string;
+  path: string;
+  roles?: Role[];
+}
+
 interface NavItem {
   label: string;
   path: string;
   icon: React.ReactNode;
   roles?: Role[];
+  children?: NavChild[];
 }
 
 const navItems: NavItem[] = [
   {
     label: 'Dashboard',
     path: '/dashboard',
+    // Admin-only sub-items; clients see Dashboard as a plain link.
+    children: [
+      { label: 'Stats', path: '/admin/stats', roles: ['ADMIN'] },
+      { label: 'Export', path: '/admin/export', roles: ['ADMIN'] },
+    ],
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
-      </svg>
-    ),
-  },
-  // ADMIN — Stats (second position)
-  {
-    label: 'Stats',
-    path: '/admin/stats',
-    roles: ['ADMIN'],
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
       </svg>
     ),
   },
@@ -134,9 +136,20 @@ export function Sidebar() {
   const { canInstall, isInstalled, install } = useInstallPrompt();
   const isAdmin = user?.role === 'ADMIN';
 
-  const filteredItems = navItems.filter(
-    (item) => !item.roles || (user?.role && item.roles.includes(user.role))
-  );
+  const location = useLocation();
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
+  const canSee = (roles?: Role[]) => !roles || (user?.role != null && roles.includes(user.role));
+  const filteredItems = navItems.filter((item) => canSee(item.roles));
+
+  const closeOnMobile = () => {
+    if (window.innerWidth < 1024) setSidebarCollapsed(true);
+  };
+
+  const leafClass = (isActive: boolean) =>
+    `group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+      isActive ? 'bg-primary-50 text-primary-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+    } ${sidebarCollapsed ? 'lg:justify-center' : ''}`;
 
   return (
     <>
@@ -185,37 +198,75 @@ export function Sidebar() {
           >
             Menu
           </p>
-          {filteredItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              onClick={() => {
-                if (window.innerWidth < 1024) setSidebarCollapsed(true);
-              }}
-              className={({ isActive }) =>
-                `group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  isActive
-                    ? 'bg-primary-50 text-primary-700'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                } ${sidebarCollapsed ? 'lg:justify-center' : ''}`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <span className={`shrink-0 transition-colors ${isActive ? 'text-primary-600' : 'text-slate-400 group-hover:text-slate-600'}`}>
-                    {item.icon}
-                  </span>
-                  <span
-                    className={`whitespace-nowrap transition-opacity duration-200 ${
-                      sidebarCollapsed ? 'lg:hidden' : ''
-                    }`}
+          {filteredItems.map((item) => {
+            const children = (item.children ?? []).filter((c) => canSee(c.roles));
+            const hasGroup = children.length > 0 && !sidebarCollapsed;
+
+            // Parent's own page is active only on its exact path (`end`), so it
+            // doesn't stay highlighted while a child route is open.
+            const childActive = children.some((c) => location.pathname.startsWith(c.path));
+            const open = openGroups[item.label] ?? (location.pathname === item.path || childActive);
+
+            return (
+              <div key={item.path}>
+                <div className="flex items-center gap-1">
+                  <NavLink
+                    to={item.path}
+                    end
+                    onClick={closeOnMobile}
+                    className={({ isActive }) => `flex-1 ${leafClass(isActive)}`}
                   >
-                    {item.label}
-                  </span>
-                </>
-              )}
-            </NavLink>
-          ))}
+                    {({ isActive }) => (
+                      <>
+                        <span className={`shrink-0 transition-colors ${isActive ? 'text-primary-600' : 'text-slate-400 group-hover:text-slate-600'}`}>
+                          {item.icon}
+                        </span>
+                        <span className={`whitespace-nowrap transition-opacity duration-200 ${sidebarCollapsed ? 'lg:hidden' : ''}`}>
+                          {item.label}
+                        </span>
+                      </>
+                    )}
+                  </NavLink>
+                  {hasGroup && (
+                    <button
+                      type="button"
+                      aria-label={open ? `Collapse ${item.label}` : `Expand ${item.label}`}
+                      onClick={() => setOpenGroups((m) => ({ ...m, [item.label]: !open }))}
+                      className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors"
+                    >
+                      <svg className={`w-4 h-4 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+
+                {hasGroup && open && (
+                  <div className="mt-1 ml-5 space-y-1 border-l border-border pl-3">
+                    {children.map((child) => (
+                      <NavLink
+                        key={child.path}
+                        to={child.path}
+                        onClick={closeOnMobile}
+                        className={({ isActive }) =>
+                          `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                            isActive ? 'bg-primary-50 text-primary-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                          }`
+                        }
+                      >
+                        {({ isActive }) => (
+                          <>
+                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${isActive ? 'bg-primary-500' : 'bg-slate-300'}`} />
+                            {child.label}
+                          </>
+                        )}
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
 
         {/* Install App — admin only */}

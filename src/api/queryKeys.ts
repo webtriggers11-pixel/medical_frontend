@@ -48,4 +48,8 @@ export const queryKeys = {
     admin: ['stats', 'admin'] as const,
     client: ['stats', 'client'] as const,
   },
+  export: {
+    bookings: (params?: { from?: string; to?: string }) =>
+      params ? (['export', 'bookings', params] as const) : (['export', 'bookings'] as const),
+  },
 };

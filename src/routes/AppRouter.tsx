@@ -19,6 +19,7 @@ import { LabsPage } from '../pages/admin/LabsPage';
 import { PanelsPage } from '../pages/admin/PanelsPage';
 import { TestMasterPage } from '../pages/admin/TestMasterPage';
 import { StatsPage } from '../pages/admin/StatsPage';
+import { ExportPage } from '../pages/admin/ExportPage';
 import { CandidatesPage } from '../pages/candidates/CandidatesPage';
 import { CandidateDetailPage } from '../pages/candidates/CandidateDetailPage';
 import { AddCandidatePage } from '../pages/candidates/AddCandidatePage';
@@ -58,6 +59,7 @@ export const AppRouter = () => (
             <Route path="/admin/panels" element={<PanelsPage />} />
             <Route path="/admin/tests" element={<TestMasterPage />} />
             <Route path="/admin/stats" element={<StatsPage />} />
+            <Route path="/admin/export" element={<ExportPage />} />
           </Route>
 
           {/* User-only routes */}

@@ -119,6 +119,7 @@ export function ClientsPage() {
   const [search, setSearch] = useState('');
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<UserRecord | null>(null);
+  const [activeTarget, setActiveTarget] = useState<UserRecord | null>(null);
 
   const filtered = clients?.filter((c) => {
     const q = search.toLowerCase();
@@ -214,7 +215,7 @@ export function ClientsPage() {
                           variant="ghost"
                           size="sm"
                           loading={setActive.isPending && setActive.variables?.id === client.id}
-                          onClick={() => setActive.mutate({ id: client.id, isActive: !client.isActive })}
+                          onClick={() => setActiveTarget(client)}
                         >
                           {client.isActive ? 'Deactivate' : 'Activate'}
                         </Button>
@@ -270,6 +271,29 @@ export function ClientsPage() {
         onConfirm={() => {
           if (!deleteTarget) return;
           deleteClient.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) });
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!activeTarget}
+        onClose={() => setActiveTarget(null)}
+        loading={setActive.isPending}
+        variant={activeTarget?.isActive ? 'danger' : 'primary'}
+        title={activeTarget?.isActive ? 'Deactivate client' : 'Activate client'}
+        confirmLabel={activeTarget?.isActive ? 'Deactivate' : 'Activate'}
+        message={
+          activeTarget?.isActive ? (
+            <>Deactivate <strong>{activeTarget?.name ?? activeTarget?.email}</strong>? They will be signed out and unable to log in until reactivated.</>
+          ) : (
+            <>Activate <strong>{activeTarget?.name ?? activeTarget?.email}</strong>? They will be able to log in again.</>
+          )
+        }
+        onConfirm={() => {
+          if (!activeTarget) return;
+          setActive.mutate(
+            { id: activeTarget.id, isActive: !activeTarget.isActive },
+            { onSuccess: () => setActiveTarget(null) },
+          );
         }}
       />
     </div>
