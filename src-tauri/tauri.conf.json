@@ -1,20 +1,22 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "medical_frontend",
+  "productName": "MediSync",
   "version": "0.1.0",
   "identifier": "com.medisync.app",
   "build": {
     "frontendDist": "../dist",
-    "devUrl": "http://localhost:3000",
+    "devUrl": "http://localhost:5173",
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build"
   },
   "app": {
     "windows": [
       {
-        "title": "medical_frontend",
-        "width": 800,
-        "height": 600,
+        "title": "MediSync",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 1024,
+        "minHeight": 700,
         "resizable": true,
         "fullscreen": false
       }
