@@ -1,5 +1,8 @@
 import { Outlet, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
+import { Logo } from '../components/ui/Logo';
+import { BrandName } from '../components/ui/BrandName';
+import { BRAND_NAME, BRAND_TAGLINE } from '../config/brand';
 
 export function AuthLayout() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -11,13 +14,9 @@ export function AuthLayout() {
       {/* Left side - Brand panel */}
       <div className="hidden lg:flex lg:w-1/2 xl:w-[45%] bg-gradient-to-br from-primary-600 via-primary-700 to-primary-900 relative overflow-hidden">
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-            </div>
-            <span className="text-xl font-bold text-white">MediSync</span>
+          <div className="inline-flex items-center gap-3 self-start bg-white rounded-xl px-4 py-2.5 shadow-sm">
+            <Logo variant="mark" className="h-9" />
+            <BrandName size="md" />
           </div>
           <div>
             <h1 className="text-4xl xl:text-5xl font-bold text-white leading-tight mb-4">
@@ -30,7 +29,7 @@ export function AuthLayout() {
             </p>
           </div>
           <p className="text-primary-300 text-sm">
-            &copy; {new Date().getFullYear()} MediSync. All rights reserved.
+            &copy; {new Date().getFullYear()} {BRAND_NAME}. All rights reserved.
           </p>
         </div>
 
@@ -44,14 +43,10 @@ export function AuthLayout() {
       <div className="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-12 xl:px-20">
         <div className="w-full max-w-md mx-auto">
           {/* Mobile logo */}
-          <div className="text-center mb-8 lg:hidden">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 mb-4">
-              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-            </div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">MediSync</h1>
-            <p className="text-sm text-slate-500 mt-1">Medical Management System</p>
+          <div className="flex flex-col items-center text-center mb-8 lg:hidden">
+            <Logo variant="mark" className="h-12 mb-3" />
+            <BrandName size="lg" />
+            <p className="text-sm text-slate-500 mt-1">{BRAND_TAGLINE}</p>
           </div>
 
           <Outlet />

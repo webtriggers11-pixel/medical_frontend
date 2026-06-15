@@ -4,6 +4,8 @@ import { useAuthStore } from '../../store/auth.store';
 import { useUIStore } from '../../store/ui.store';
 import { roleLabel } from '../../config/roles';
 import { useInstallPrompt } from '../../hooks/useInstallPrompt';
+import { Logo } from '../ui/Logo';
+import { BrandName } from '../ui/BrandName';
 import type { Role } from '../../types/auth.types';
 
 interface NavChild {
@@ -172,21 +174,15 @@ export function Sidebar() {
         `}
       >
         {/* Logo */}
-        <div className="h-16 flex items-center border-b border-border px-4 shrink-0">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shrink-0">
-              <svg className="w-4.5 h-4.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-            </div>
-            <span
-              className={`font-bold text-slate-900 text-lg whitespace-nowrap transition-opacity duration-200 ${
-                sidebarCollapsed ? 'lg:opacity-0 lg:w-0' : 'opacity-100'
-              }`}
-            >
-              MediSync
-            </span>
-          </div>
+        <div className="h-16 flex items-center gap-2.5 border-b border-border px-4 shrink-0 overflow-hidden">
+          <Logo variant="mark" className="h-8 shrink-0" />
+          <BrandName
+            size="xs"
+            wrap
+            className={`min-w-0 transition-opacity duration-200 ${
+              sidebarCollapsed ? 'lg:opacity-0 lg:w-0' : 'opacity-100'
+            }`}
+          />
         </div>
 
         {/* Navigation */}
