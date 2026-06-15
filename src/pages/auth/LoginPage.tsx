@@ -1,5 +1,5 @@
 import { useForm } from 'react-hook-form';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useLogin } from '../../features/auth/hooks/useLogin';
 import { Input } from '../../components/ui/Input';
 import { PasswordInput } from '../../components/ui/PasswordInput';
@@ -75,13 +75,6 @@ export function LoginPage() {
         </Button>
         </fieldset>
       </form>
-
-      <p className="mt-8 text-center text-sm text-slate-500">
-        Don't have an account?{' '}
-        <Link to="/register" className="font-semibold text-primary-600 hover:text-primary-700 transition-colors">
-          Create one
-        </Link>
-      </p>
     </div>
   );
 }

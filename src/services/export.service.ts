@@ -1,4 +1,5 @@
 import api from '../api/axios.instance';
+import { BRAND_SLUG } from '../config/brand';
 import type { ApiResponse } from '../types/auth.types';
 
 export interface BookingMatrix {
@@ -26,7 +27,7 @@ export const exportService = {
     // Prefer the server-provided filename, fall back to a dated default.
     const disposition = res.headers['content-disposition'] as string | undefined;
     const match = disposition?.match(/filename="?([^"]+)"?/);
-    const filename = match?.[1] ?? `medisync-bookings-${new Date().toISOString().slice(0, 10)}.csv`;
+    const filename = match?.[1] ?? `${BRAND_SLUG}-bookings-${new Date().toISOString().slice(0, 10)}.csv`;
 
     const url = window.URL.createObjectURL(new Blob([res.data]));
     const link = document.createElement('a');

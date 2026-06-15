@@ -11,8 +11,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'pwa-192.png', 'pwa-512.png'],
       manifest: {
-        name: 'MediSync',
-        short_name: 'MediSync',
+        name: 'Lifecare Health Services',
+        short_name: 'Lifecare',
         description: 'B2B Medical Diagnostics Platform',
         theme_color: '#863bff',
         background_color: '#ffffff',
