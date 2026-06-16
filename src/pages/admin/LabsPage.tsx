@@ -514,7 +514,7 @@ export function LabsPage() {
                     </td>
                     <td className="px-5 py-3.5 text-slate-600">
                       {l.address ? (
-                        <p className="max-w-[240px] whitespace-normal leading-snug">
+                        <p className="min-w-[280px] max-w-[360px] whitespace-normal leading-snug">
                           {l.address}{l.pincode ? ` – ${l.pincode}` : ''}
                         </p>
                       ) : '—'}

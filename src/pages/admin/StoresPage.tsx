@@ -381,7 +381,7 @@ export function StoresPage() {
                       <div className="text-xs text-slate-400">{s.city?.zone?.name ?? '—'}</div>
                     </td>
                     <td className="px-5 py-3.5 text-slate-600">
-                      <div className="max-w-[220px] whitespace-normal leading-snug">{s.address || '—'}</div>
+                      <div className="min-w-[280px] max-w-[360px] whitespace-normal leading-snug">{s.address || '—'}</div>
                     </td>
                     <td className="px-5 py-3.5 text-slate-600">
                       <div>{s.storeHeadName}</div>
