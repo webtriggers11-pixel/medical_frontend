@@ -92,7 +92,7 @@ export function PanelsPage() {
                       <p className="text-slate-700 whitespace-nowrap">{p.lab?.name ?? '—'}</p>
                       {p.lab?.address && (
                         <p
-                          className="text-xs text-slate-400 mt-0.5 max-w-[200px] leading-snug line-clamp-2"
+                          className="text-xs text-slate-400 mt-0.5 max-w-[280px] leading-snug line-clamp-2"
                           title={`${p.lab.address}${p.lab.pincode ? ` – ${p.lab.pincode}` : ''}`}
                         >
                           {p.lab.address}{p.lab.pincode ? ` – ${p.lab.pincode}` : ''}

@@ -543,7 +543,7 @@ function PanelsTab({ clientId }: { clientId: string }) {
                       <td className="px-5 py-3.5 text-slate-500 text-sm">
                         <p>{panel.lab?.name ?? '—'}</p>
                         {panel.lab?.address && (
-                          <p className="text-xs text-slate-400 mt-0.5 max-w-[200px] whitespace-normal leading-snug" title={`${panel.lab.address}${panel.lab.pincode ? ` – ${panel.lab.pincode}` : ''}`}>
+                          <p className="text-xs text-slate-400 mt-0.5 max-w-[280px] whitespace-normal leading-snug" title={`${panel.lab.address}${panel.lab.pincode ? ` – ${panel.lab.pincode}` : ''}`}>
                             {panel.lab.address}{panel.lab.pincode ? ` – ${panel.lab.pincode}` : ''}
                           </p>
                         )}

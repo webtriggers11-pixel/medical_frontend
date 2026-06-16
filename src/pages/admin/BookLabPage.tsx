@@ -556,7 +556,7 @@ export function BookLabPage() {
                               {panel.labContact && <p className="text-xs text-slate-400 mt-0.5">{panel.labContact}</p>}
                             </td>
                             {/* Lab + address */}
-                            <td className="px-5 py-3.5 min-w-[160px] max-w-[200px]">
+                            <td className="px-5 py-3.5 min-w-[220px] max-w-[280px]">
                               <p className="font-medium text-slate-700 whitespace-nowrap">{panel.lab?.name ?? '—'}</p>
                               {panel.lab?.address && (
                                 <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">

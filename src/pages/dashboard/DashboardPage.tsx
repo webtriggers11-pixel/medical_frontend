@@ -780,7 +780,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
                                 <p className="text-[11px] text-slate-400 mt-0.5 whitespace-nowrap">{booking.lab.contactMobile}</p>
                               )}
                               {booking.lab.address && (
-                                <p className="text-[11px] text-slate-400 mt-0.5 max-w-[200px] leading-snug" title={`${booking.lab.address}${booking.lab.pincode ? ` – ${booking.lab.pincode}` : ''}`}>
+                                <p className="text-[11px] text-slate-400 mt-0.5 max-w-[280px] whitespace-normal leading-snug" title={`${booking.lab.address}${booking.lab.pincode ? ` – ${booking.lab.pincode}` : ''}`}>
                                   {booking.lab.address}{booking.lab.pincode ? ` – ${booking.lab.pincode}` : ''}
                                 </p>
                               )}
