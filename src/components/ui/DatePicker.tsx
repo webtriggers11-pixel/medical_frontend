@@ -32,8 +32,9 @@ export function DatePicker({
   const popoverRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
 
-  // Position the portal popover relative to the trigger, flipping above when
-  // there isn't room below and clamping inside the viewport.
+  // Position the portal popover relative to the trigger. Prefer opening above
+  // the trigger so the calendar doesn't overlap the fields below it; flip below
+  // only when there isn't room above, and clamp inside the viewport.
   const reposition = () => {
     const trigger = triggerRef.current;
     if (!trigger) return;
@@ -43,10 +44,11 @@ export function DatePicker({
     const pw = pop?.offsetWidth ?? r.width;
     const gap = 8;
 
-    let top = r.bottom + gap;
-    if (top + ph > window.innerHeight - gap && r.top - ph - gap > gap) {
-      top = r.top - ph - gap; // flip above
+    let top = r.top - ph - gap; // open above by default
+    if (top < gap && r.bottom + ph + gap <= window.innerHeight - gap) {
+      top = r.bottom + gap; // not enough room above — flip below
     }
+    if (top < gap) top = gap; // clamp into viewport
     let left = r.left;
     if (left + pw > window.innerWidth - gap) left = window.innerWidth - pw - gap;
     if (left < gap) left = gap;
