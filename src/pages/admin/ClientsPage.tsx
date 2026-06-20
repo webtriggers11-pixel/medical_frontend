@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import {
-  useUsers,
+  useClientsPage,
   useCreateClient,
   useSetClientActive,
   useDeleteClient,
@@ -18,7 +18,8 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Pagination } from '../../components/ui/Pagination';
-import { usePagination } from '../../hooks/usePagination';
+import { BusyOverlay } from '../../components/ui/BusyOverlay';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { getApiErrorMessage } from '../../lib/apiError';
 import type { CreateClientInput, UserRecord } from '../../types/user.types';
 
@@ -113,24 +114,22 @@ function AddClientModal({ open, onClose }: { open: boolean; onClose: () => void 
 
 export function ClientsPage() {
   const navigate = useNavigate();
-  const { data: clients, isLoading, error } = useUsers();
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
+  const [page, setPage] = useState(1);
+  // Jump back to page 1 whenever the (debounced) search term changes.
+  useEffect(() => setPage(1), [debouncedSearch]);
+
+  const { data, isLoading, isFetching, error } = useClientsPage({ page, limit: 10, search: debouncedSearch });
+  const pageItems = data?.items ?? [];
+  const totalPages = data?.meta.totalPages ?? 1;
+  const total = data?.meta.total ?? 0;
+
   const setActive = useSetClientActive();
   const deleteClient = useDeleteClient();
-  const [search, setSearch] = useState('');
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<UserRecord | null>(null);
   const [activeTarget, setActiveTarget] = useState<UserRecord | null>(null);
-
-  const filtered = clients?.filter((c) => {
-    const q = search.toLowerCase();
-    return (
-      c.email.toLowerCase().includes(q) ||
-      (c.name ?? '').toLowerCase().includes(q) ||
-      (c.mobile ?? '').toLowerCase().includes(q)
-    );
-  });
-
-  const { page, setPage, totalPages, pageItems } = usePagination(filtered ?? [], { resetKey: search });
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -139,7 +138,7 @@ export function ClientsPage() {
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Clients</h1>
           <p className="text-slate-500 mt-1">
             Manage your clients
-            {clients && <span className="text-slate-400"> · {clients.length} total</span>}
+            {data && <span className="text-slate-400"> · {total} total</span>}
           </p>
         </div>
         <Button icon={PlusIcon} onClick={() => setAddModalOpen(true)}>Add client</Button>
@@ -158,8 +157,10 @@ export function ClientsPage() {
       {isLoading && <SkeletonTable rows={5} />}
       {error && <Card><p className="text-sm text-red-600 font-medium">Failed to load clients. Please try again.</p></Card>}
 
-      {filtered && filtered.length > 0 && (
-        <Card padding="none">
+      {pageItems.length > 0 && (
+        <div className="relative">
+          <BusyOverlay show={isFetching && !isLoading} />
+          <Card padding="none">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -234,10 +235,11 @@ export function ClientsPage() {
               <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
           )}
-        </Card>
+          </Card>
+        </div>
       )}
 
-      {filtered && filtered.length === 0 && search && (
+      {!isLoading && pageItems.length === 0 && debouncedSearch && (
         <Card>
           <EmptyState
             icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>}
@@ -248,7 +250,7 @@ export function ClientsPage() {
         </Card>
       )}
 
-      {filtered && filtered.length === 0 && !search && (
+      {!isLoading && pageItems.length === 0 && !debouncedSearch && (
         <Card>
           <EmptyState
             icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>}

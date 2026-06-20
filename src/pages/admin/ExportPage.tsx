@@ -107,7 +107,7 @@ export function ExportPage() {
         <div className="space-y-4">
           {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{error}</p>}
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Date range (by requested date)</p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Date range (by checkup date)</p>
             <div className="flex flex-wrap items-center gap-2">
               {PRESETS.map((p) => (
                 <button

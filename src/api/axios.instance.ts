@@ -4,6 +4,8 @@ import { useAuthStore } from '../store/auth.store';
 const api = axios.create({
   baseURL: `${import.meta.env.VITE_API_URL}/api/v1`,
   headers: { 'Content-Type': 'application/json' },
+  // Fail a hung request after 30s instead of leaving the UI spinning forever.
+  timeout: 30_000,
 });
 
 api.interceptors.request.use((config) => {

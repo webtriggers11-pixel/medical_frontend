@@ -12,15 +12,17 @@ import { DateRangePicker, type DateRange } from '../../components/ui/DateRangePi
 import { FunnelChart, type FunnelDatum } from '../../components/charts/FunnelChart';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { Pagination } from '../../components/ui/Pagination';
-import { usePagination } from '../../hooks/usePagination';
-import { useCandidates, useSetCandidateApproval } from '../../features/candidates/hooks/useCandidates';
+import { BusyOverlay } from '../../components/ui/BusyOverlay';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useCandidatesPage, useSetCandidateApproval } from '../../features/candidates/hooks/useCandidates';
 import { Switch } from '../../components/ui/Switch';
-import { useBookings } from '../../features/booking/hooks/useBookings';
 import { RescheduleModal } from '../../features/booking/components/RescheduleModal';
 import { UploadReportModal } from '../../features/reports/components/UploadReportModal';
 import { ReportManagerModal } from '../../features/reports/components/ReportManagerModal';
-import { useReports } from '../../features/reports/hooks/useReports';
-import { useClientStats } from '../../features/stats/hooks/useStats';
+import { useClientStats, useAdminStats } from '../../features/stats/hooks/useStats';
+import { useUsers } from '../../features/users/hooks/useUsers';
+import { useZones, useCities, useStores } from '../../features/candidates/hooks/useOrgCascade';
+import { useLabs } from '../../features/lab/hooks/useLabs';
 import { downloadReportFiles } from '../../features/reports/lib/fileDownload';
 import type { Booking } from '../../types/booking.types';
 import { bookingStatusLabel, bookingStatusVariant, isRescheduled } from '../../types/booking.types';
@@ -339,46 +341,20 @@ const STATUS_OPTIONS = [
   { value: ALL, label: 'All statuses' },
   { value: 'APPT_REQ', label: 'Appointment requested' },
   { value: 'SCHEDULE', label: 'Scheduled' },
-  { value: 'RESCHEDULE', label: 'Reschedule' },
   { value: 'REPORT_PENDING', label: 'Report pending' },
   { value: 'DONE', label: 'Done' },
 ];
 
-/** Map a candidate's latest booking (or none) to a status filter bucket. */
-function statusBucket(booking?: Booking): string {
-  if (!booking) return 'APPT_REQ';
-  switch (booking.status) {
-    case 'SCHEDULED':
-      return isRescheduled(booking) ? 'RESCHEDULE' : 'SCHEDULE';
-    case 'CANCELLED':
-      return 'RESCHEDULE';
-    case 'VISITED':
-      return 'REPORT_PENDING';
-    case 'REPORT_UPLOADED':
-    case 'FIT':
-    case 'UNFIT':
-      return 'DONE';
-    case 'APPOINTMENT_REQUESTED':
-    default:
-      // no booking yet, or still an appointment request
-      return 'APPT_REQ';
-  }
-}
+// Status-bucket filtering is now applied server-side (candidates `status`
+// param); the client no longer derives buckets from a full bookings list.
 
 
 function AdminDashboard({ firstName }: { firstName: string }) {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  // Debounce the search box, then let the backend filter the candidate list.
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
-    return () => clearTimeout(t);
-  }, [search]);
-  const { data: candidates, isLoading, error } = useCandidates(debouncedSearch ? { search: debouncedSearch } : undefined);
-  const { data: bookings } = useBookings();
-  const { data: reports } = useReports();
+  const debouncedSearch = useDebouncedValue(search, 300);
   const setApproval = useSetCandidateApproval();
+  const { data: adminStats } = useAdminStats();
 
   /* ── filters ── */
   const [fClient, setFClient] = useState(ALL);
@@ -395,64 +371,48 @@ function AdminDashboard({ firstName }: { firstName: string }) {
   const hasFilter = !!(search || fClient || fZone || fCity || fStore || fLab || fStatus || fApprove || fDateRange?.from);
   const activeFilterCount = [fClient, fZone, fCity, fStore, fLab, fStatus, fApprove].filter(Boolean).length + (fDateRange?.from ? 1 : 0);
 
-  /* ── booking map ── */
-  const bookingMap = useMemo(() => {
-    const m = new Map<string, typeof bookings extends (infer T)[] | undefined ? T : never>();
-    bookings?.forEach((b) => { const ex = m.get(b.candidateId); if (!ex || new Date(b.createdAt) > new Date(ex.createdAt)) m.set(b.candidateId, b); });
-    return m;
-  }, [bookings]);
+  const [page, setPage] = useState(1);
+  // Reset to page 1 whenever any filter/search changes.
+  const filterKey = `${debouncedSearch}|${fClient}|${fZone}|${fCity}|${fStore}|${fLab}|${fStatus}|${fApprove}|${fDateRange?.from?.toISOString() ?? ''}|${fDateRange?.to?.toISOString() ?? ''}`;
+  useEffect(() => { setPage(1); }, [filterKey]);
 
-  /* ── report map — keyed by bookingId ── */
-  const reportMap = useMemo(() => {
-    const m = new Map<string, Report>();
-    reports?.forEach((r) => m.set(r.bookingId, r));
-    return m;
-  }, [reports]);
-
-  /* ── derived options ── */
-  const clientOpts = useMemo(() => { const s = new Map<string, string>(); candidates?.forEach((c) => { if (c.client) s.set(c.clientId, c.client.name ?? c.client.email); }); return [{ value: ALL, label: 'All clients' }, ...Array.from(s, ([v, l]) => ({ value: v, label: l }))]; }, [candidates]);
-  const zoneOpts = useMemo(() => { const s = new Map<string, string>(); candidates?.forEach((c) => { const z = c.store?.city?.zone; if (z) s.set(z.id, z.name); }); return [{ value: ALL, label: 'All zones' }, ...Array.from(s, ([v, l]) => ({ value: v, label: l }))]; }, [candidates]);
-  const cityOpts = useMemo(() => { const s = new Map<string, string>(); candidates?.forEach((c) => { const city = c.store?.city; if (!city) return; if (fZone && city.zone?.id !== fZone) return; s.set(city.id, city.name); }); return [{ value: ALL, label: 'All cities' }, ...Array.from(s, ([v, l]) => ({ value: v, label: l }))]; }, [candidates, fZone]);
-  const storeOpts = useMemo(() => { const s = new Map<string, string>(); candidates?.forEach((c) => { if (!c.store) return; if (fCity && c.store.city?.id !== fCity) return; if (fZone && c.store.city?.zone?.id !== fZone) return; s.set(c.storeId, `${c.store.name} (${c.store.storeCode})`); }); return [{ value: ALL, label: 'All stores' }, ...Array.from(s, ([v, l]) => ({ value: v, label: l }))]; }, [candidates, fCity, fZone]);
-  const labOpts = useMemo(() => { const s = new Map<string, string>(); bookings?.forEach((b) => { if (b.lab) s.set(b.lab.id, b.lab.name); }); return [{ value: ALL, label: 'All labs' }, ...Array.from(s, ([v, l]) => ({ value: v, label: l }))]; }, [bookings]);
-
-  /* ── filtered list ── */
-  // Everything except the booking-status filter — so the status breakdown can
-  // always show the count for each bucket within the current scope.
-  const baseFiltered = useMemo(() => {
-    if (!candidates) return [];
-    // Free-text search is applied by the backend; the rest narrow client-side.
-    return candidates.filter((c) => {
-      if (fClient && c.clientId !== fClient) return false;
-      if (fZone && c.store?.city?.zone?.id !== fZone) return false;
-      if (fCity && c.store?.city?.id !== fCity) return false;
-      if (fStore && c.storeId !== fStore) return false;
-      if (fLab) { const b = bookingMap.get(c.id); if (b?.lab?.id !== fLab) return false; }
-      if (fApprove !== ALL && String(c.isApproved) !== fApprove) return false;
-      if (fDateRange?.from) {
-        if (!c.appointmentDate) return false;
-        const d = new Date(c.appointmentDate); d.setHours(0, 0, 0, 0);
-        const from = new Date(fDateRange.from); from.setHours(0, 0, 0, 0);
-        if (d < from) return false;
-        if (fDateRange.to) { const to = new Date(fDateRange.to); to.setHours(23, 59, 59, 999); if (d > to) return false; }
-      }
-      return true;
-    });
-  }, [candidates, bookingMap, fClient, fZone, fCity, fStore, fLab, fApprove, fDateRange]);
-
-  const filtered = useMemo(
-    () => (fStatus ? baseFiltered.filter((c) => statusBucket(bookingMap.get(c.id)) === fStatus) : baseFiltered),
-    [baseFiltered, fStatus, bookingMap],
-  );
-
-  const { page, setPage, totalPages, pageItems } = usePagination(filtered, {
-    resetKey: `${search}|${fClient}|${fZone}|${fCity}|${fStore}|${fLab}|${fStatus}|${fApprove}|${fDateRange?.from?.toISOString() ?? ''}|${fDateRange?.to?.toISOString() ?? ''}`,
+  /* ── server-paginated, server-filtered candidate page ── */
+  const { data, isLoading, isFetching, error } = useCandidatesPage({
+    page,
+    limit: 10,
+    search: debouncedSearch,
+    with: 'booking',
+    clientId: fClient || undefined,
+    zoneId: fZone || undefined,
+    cityId: fCity || undefined,
+    storeId: fStore || undefined,
+    labId: fLab || undefined,
+    approve: fApprove || undefined,
+    status: fStatus || undefined,
+    from: fDateRange?.from ? fDateRange.from.toISOString() : undefined,
+    to: fDateRange?.to ? fDateRange.to.toISOString() : undefined,
   });
+  const pageItems = data?.items ?? [];
+  const totalPages = data?.meta.totalPages ?? 1;
+  const total = data?.meta.total ?? 0;
 
-  /* ── stats ── */
-  const totalBooked = useMemo(() => filtered.filter((c) => bookingMap.has(c.id)).length, [filtered, bookingMap]);
-  const totalApproved = useMemo(() => filtered.filter((c) => c.isApproved).length, [filtered]);
-  const totalPending = filtered.length - totalBooked;
+  /* ── filter dropdown options — from dedicated endpoints, not the full list ── */
+  const { data: clients } = useUsers();
+  const { data: zones } = useZones();
+  const { data: cities } = useCities(fZone || undefined);
+  const { data: stores } = useStores(fCity || undefined);
+  const { data: labs } = useLabs();
+  const clientOpts = useMemo(() => [{ value: ALL, label: 'All clients' }, ...(clients ?? []).map((c) => ({ value: c.id, label: c.name ?? c.email }))], [clients]);
+  const zoneOpts = useMemo(() => [{ value: ALL, label: 'All zones' }, ...(zones ?? []).map((z) => ({ value: z.id, label: z.name }))], [zones]);
+  const cityOpts = useMemo(() => [{ value: ALL, label: 'All cities' }, ...(cities ?? []).map((c) => ({ value: c.id, label: c.name }))], [cities]);
+  const storeOpts = useMemo(() => [{ value: ALL, label: 'All stores' }, ...(stores ?? []).map((s) => ({ value: s.id, label: s.storeCode ? `${s.name} (${s.storeCode})` : s.name }))], [stores]);
+  const labOpts = useMemo(() => [{ value: ALL, label: 'All labs' }, ...(labs ?? []).map((l) => ({ value: l.id, label: l.name }))], [labs]);
+
+  /* ── global stat tiles (from /stats; not filter-scoped) ── */
+  const totalAll = adminStats?.candidates.total ?? 0;
+  const totalBooked = adminStats?.bookings.total ?? 0;
+  const totalApproved = adminStats?.candidates.approved ?? 0;
+  const totalPending = Math.max(0, totalAll - totalBooked);
 
   const [uploadTarget, setUploadTarget] = useState<{ bookingId: string; candidateName: string; tests: string[] } | null>(null);
   const [reportTarget, setReportTarget] = useState<{ report: Report; candidateName: string; tests: string[] } | null>(null);
@@ -483,7 +443,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
               Welcome back, {firstName}
             </h1>
             <p className="text-white/60 text-sm mt-1">
-              {candidates?.length ?? 0} candidates across the platform
+              {totalAll} candidates across the platform
             </p>
           </div>
           <div className="flex flex-col items-start gap-3 sm:items-end">
@@ -500,7 +460,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
             </button>
             {/* stat pills */}
             <div className="flex gap-2 flex-wrap">
-              <StatPill label="Total" value={candidates?.length ?? 0} color="bg-white/15 text-white" />
+              <StatPill label="Total" value={totalAll} color="bg-white/15 text-white" />
               <StatPill label="Booked" value={totalBooked} color="bg-emerald-400/20 text-emerald-100" />
               <StatPill label="Pending" value={totalPending} color="bg-amber-400/20 text-amber-100" />
               <StatPill label="Approved" value={totalApproved} color="bg-sky-400/20 text-sky-100" />
@@ -526,7 +486,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
             <div className="text-left">
               <p className="text-sm font-semibold text-slate-800">Filters</p>
               <p className="text-xs text-slate-400 mt-0.5">
-                {activeFilterCount > 0 ? `${activeFilterCount} active · ${filtered.length} of ${candidates?.length ?? 0} shown` : 'All candidates shown'}
+                {activeFilterCount > 0 ? `${activeFilterCount} active · ${total} of ${totalAll} shown` : 'All candidates shown'}
               </p>
             </div>
           </div>
@@ -591,8 +551,8 @@ function AdminDashboard({ firstName }: { firstName: string }) {
             <p className="font-semibold text-slate-900">Candidates</p>
             <p className="text-xs text-slate-400 mt-0.5">
               {hasFilter
-                ? <span><span className="font-medium text-primary-600">{filtered.length}</span> of {candidates?.length} match filters</span>
-                : <span><span className="font-medium text-slate-600">{candidates?.length ?? 0}</span> total</span>
+                ? <span><span className="font-medium text-primary-600">{total}</span> of {totalAll} match filters</span>
+                : <span><span className="font-medium text-slate-600">{totalAll}</span> total</span>
               }
             </p>
           </div>
@@ -616,7 +576,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
           </div>
         )}
 
-        {!isLoading && !error && filtered.length === 0 && (
+        {!isLoading && !error && pageItems.length === 0 && (
           <div className="flex flex-col items-center py-14 gap-3">
             <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
               <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
@@ -628,7 +588,9 @@ function AdminDashboard({ firstName }: { firstName: string }) {
           </div>
         )}
 
-        {!isLoading && !error && filtered.length > 0 && (
+        {!isLoading && !error && pageItems.length > 0 && (
+          <div className="relative">
+            <BusyOverlay show={isFetching && !isLoading} />
           <div className="overflow-x-auto">
             <div className="max-h-[calc(100vh-360px)] overflow-y-auto">
               <table className="w-max min-w-full text-sm">
@@ -657,7 +619,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {pageItems.map((c) => {
-                    const booking = bookingMap.get(c.id);
+                    const booking = c.bookings?.[0];
                     const isBooked = !!booking;
                     return (
                       <tr key={c.id} className={`transition-colors group ${isBooked ? 'hover:bg-emerald-50/30' : 'hover:bg-primary-50/20'}`}>
@@ -804,7 +766,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
                                 Uploaded
                               </span>
                               {(() => {
-                                const report = booking && reportMap.get(booking.id);
+                                const report = booking?.report;
                                 if (!report) return null;
                                 const tests = booking?.panel?.bundledTest?.testsIncluded ?? [];
                                 return (
@@ -860,6 +822,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
                 <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
               </div>
             )}
+          </div>
           </div>
         )}
       </div>

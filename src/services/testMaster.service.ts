@@ -1,10 +1,22 @@
 import api from '../api/axios.instance';
 import type { ApiResponse } from '../types/auth.types';
+import type { Paginated } from '../types/pagination.types';
 import type { TestMaster, CreateTestMasterInput, UpdateTestMasterInput } from '../types/testMaster.types';
 
 export const testMasterService = {
   getAll: async (): Promise<TestMaster[]> => {
     const res = await api.get<ApiResponse<TestMaster[]>>('/test-masters');
+    return res.data.data;
+  },
+
+  getPage: async (params: { page: number; limit: number; search?: string }): Promise<Paginated<TestMaster>> => {
+    const res = await api.get<ApiResponse<Paginated<TestMaster>>>('/test-masters', {
+      params: {
+        page: params.page,
+        limit: params.limit,
+        search: params.search?.trim() || undefined,
+      },
+    });
     return res.data.data;
   },
 

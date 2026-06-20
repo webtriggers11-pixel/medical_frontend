@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../../api/queryKeys';
 import { bookingService } from '../../../services/booking.service';
 import type { CreateBookingInput, UpdateBookingStatusInput, RescheduleBookingInput } from '../../../types/booking.types';
@@ -14,6 +14,18 @@ export const useBookingRequests = () =>
   useQuery({
     queryKey: queryKeys.bookings.pending,
     queryFn: bookingService.getRequests,
+  });
+
+// Admin — server-paginated + searched booking-requests list.
+export const useBookingRequestsPage = (params: {
+  page: number;
+  limit: number;
+  search?: string;
+}) =>
+  useQuery({
+    queryKey: [...queryKeys.bookings.pending, 'page', params] as const,
+    queryFn: () => bookingService.getRequestsPage(params),
+    placeholderData: keepPreviousData,
   });
 
 // Admin — book a candidate with a panel

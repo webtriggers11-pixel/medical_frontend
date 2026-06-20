@@ -43,12 +43,15 @@ export interface Booking {
   lab?: {
     id: string;
     name: string;
-    contactName: string;
+    contactName?: string;
     contactMobile: string;
-    email: string;
+    email?: string;
     address: string | null;
     pincode: string | null;
   } | null;
+  // Present when the candidate list is fetched with `with=booking` — the report
+  // attached to this booking, if uploaded.
+  report?: import('./report.types').Report | null;
   client?: {
     id: string;
     name: string | null;

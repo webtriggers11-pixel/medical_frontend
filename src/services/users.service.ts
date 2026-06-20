@@ -1,11 +1,28 @@
 import api from '../api/axios.instance';
 import type { UserRecord, CreateClientInput } from '../types/user.types';
 import type { ApiResponse } from '../types/auth.types';
+import type { Paginated } from '../types/pagination.types';
 
 // Clients are users (role USER). These endpoints back the Clients page.
 export const usersService = {
   getAll: async (): Promise<UserRecord[]> => {
     const res = await api.get<ApiResponse<UserRecord[]>>('/users');
+    return res.data.data;
+  },
+
+  // Server-paginated + searched list for the Clients table.
+  getPage: async (params: {
+    page: number;
+    limit: number;
+    search?: string;
+  }): Promise<Paginated<UserRecord>> => {
+    const res = await api.get<ApiResponse<Paginated<UserRecord>>>('/users', {
+      params: {
+        page: params.page,
+        limit: params.limit,
+        search: params.search?.trim() || undefined,
+      },
+    });
     return res.data.data;
   },
 

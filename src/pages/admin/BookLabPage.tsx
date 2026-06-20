@@ -6,7 +6,7 @@ import { useCandidates } from '../../features/candidates/hooks/useCandidates';
 import { useClientById } from '../../features/users/hooks/useUsers';
 import { useCreateBooking } from '../../features/booking/hooks/useBookings';
 import { orgService } from '../../services/org.service';
-import { panelService } from '../../services/panel.service';
+import { usePanelsForClient } from '../../features/panel/hooks/usePanels';
 import { queryKeys } from '../../api/queryKeys';
 import { Avatar } from '../../components/ui/Avatar';
 import { Badge } from '../../components/ui/Badge';
@@ -100,11 +100,8 @@ export function BookLabPage() {
     available: true,
   });
   const { data: client, isLoading: clientLoading } = useClientById(clientId ?? '');
-  const { data: allPanels, isLoading: panelsLoading } = useQuery({
-    queryKey: [...queryKeys.panels.all, 'book-lab'],
-    queryFn: () => panelService.getAll(),
-    staleTime: 0,
-  });
+  // Only panels priced for the selected client — filtered server-side.
+  const { data: clientPanels = [], isLoading: panelsLoading } = usePanelsForClient(clientId);
   const { data: allStores, isLoading: storesLoading } = useQuery({
     queryKey: queryKeys.org.storesAll,
     queryFn: () => orgService.listStores(),
@@ -113,11 +110,6 @@ export function BookLabPage() {
 
   /* derived */
   const store = useMemo(() => allStores?.find((s) => s.id === storeId), [allStores, storeId]);
-  // Only panels assigned to the selected client (those with client-specific pricing).
-  const clientPanels = useMemo(
-    () => allPanels?.filter((p) => p.clientPricing?.some((cp) => cp.clientId === clientId)) ?? [],
-    [allPanels, clientId],
-  );
 
   /* selection */
   const [selected, setSelected] = useState<Set<string>>(() => new Set(candidateId ? [candidateId] : []));

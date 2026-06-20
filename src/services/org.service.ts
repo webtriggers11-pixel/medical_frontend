@@ -1,6 +1,7 @@
 import api from '../api/axios.instance';
 import type { ApiResponse } from '../types/auth.types';
 import type { Zone, City, Store, StoreWithLocation, CreateZoneInput, CreateCityInput, CreateStoreInput } from '../types/org.types';
+import type { Paginated } from '../types/pagination.types';
 
 export const orgService = {
   listZones: async (): Promise<Zone[]> => {
@@ -16,6 +17,35 @@ export const orgService = {
   listStores: async (cityId?: string): Promise<StoreWithLocation[]> => {
     const res = await api.get<ApiResponse<StoreWithLocation[]>>('/stores', {
       params: cityId ? { cityId } : {},
+    });
+    return res.data.data;
+  },
+
+  // Server-paginated + searched variants for the management tables (the
+  // unpaginated list* methods above stay for dropdowns / cascades).
+  listZonesPage: async (params: { page: number; limit: number; search?: string }): Promise<Paginated<Zone>> => {
+    const res = await api.get<ApiResponse<Paginated<Zone>>>('/zones', {
+      params: { page: params.page, limit: params.limit, search: params.search?.trim() || undefined },
+    });
+    return res.data.data;
+  },
+
+  listCitiesPage: async (zoneId: string, params: { page: number; limit: number; search?: string }): Promise<Paginated<City>> => {
+    const res = await api.get<ApiResponse<Paginated<City>>>('/cities', {
+      params: { zoneId, page: params.page, limit: params.limit, search: params.search?.trim() || undefined },
+    });
+    return res.data.data;
+  },
+
+  listStoresPage: async (params: { page: number; limit: number; search?: string; zoneId?: string; cityId?: string }): Promise<Paginated<StoreWithLocation>> => {
+    const res = await api.get<ApiResponse<Paginated<StoreWithLocation>>>('/stores', {
+      params: {
+        page: params.page,
+        limit: params.limit,
+        search: params.search?.trim() || undefined,
+        zoneId: params.zoneId || undefined,
+        cityId: params.cityId || undefined,
+      },
     });
     return res.data.data;
   },

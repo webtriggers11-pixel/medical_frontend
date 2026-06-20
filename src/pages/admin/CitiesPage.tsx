@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useZones, useCities, useCreateCity, useUpdateCity, useDeleteCity } from '../../features/org/hooks/useOrg';
+import { useZones, useCitiesPage, useCreateCity, useUpdateCity, useDeleteCity } from '../../features/org/hooks/useOrg';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -12,7 +12,8 @@ import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Pagination } from '../../components/ui/Pagination';
-import { usePagination } from '../../hooks/usePagination';
+import { BusyOverlay } from '../../components/ui/BusyOverlay';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { getApiErrorMessage } from '../../lib/apiError';
 import type { City } from '../../types/org.types';
 
@@ -87,19 +88,20 @@ export function CitiesPage() {
   const [deleteTarget, setDeleteTarget] = useState<City | null>(null);
 
   const { data: zones } = useZones();
-  const { data: cities, isLoading, error } = useCities(selectedZoneId);
+  const debouncedSearch = useDebouncedValue(search, 300);
+  const [page, setPage] = useState(1);
+  // Jump back to page 1 whenever the (debounced) search term or selected zone changes.
+  useEffect(() => setPage(1), [debouncedSearch, selectedZoneId]);
+
+  const { data, isLoading, isFetching, error } = useCitiesPage(selectedZoneId, { page, limit: 10, search: debouncedSearch });
+  const pageItems = data?.items ?? [];
+  const totalPages = data?.meta.totalPages ?? 1;
+  const total = data?.meta.total ?? 0;
+
   const deleteCity = useDeleteCity(selectedZoneId);
 
   const zoneOptions = zones?.map((z) => ({ value: z.id, label: z.name })) ?? [];
   const selectedZone = zones?.find((z) => z.id === selectedZoneId);
-
-  const filtered = cities?.filter((c) =>
-    c.name.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const { page, setPage, totalPages, pageItems } = usePagination(filtered ?? [], {
-    resetKey: `${selectedZoneId}|${search}`,
-  });
 
   const handleEdit = (c: City) => { setEditing(c); setModalOpen(true); };
   const handleClose = () => { setEditing(null); setModalOpen(false); };
@@ -111,8 +113,8 @@ export function CitiesPage() {
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Cities</h1>
           <p className="text-slate-500 mt-1">
             City master list by zone
-            {cities && selectedZoneId && (
-              <span className="text-slate-400"> &middot; {cities.length} total</span>
+            {data && selectedZoneId && (
+              <span className="text-slate-400"> &middot; {total} total</span>
             )}
           </p>
         </div>
@@ -162,8 +164,10 @@ export function CitiesPage() {
         </Card>
       )}
 
-      {filtered && filtered.length > 0 && (
-        <Card padding="none">
+      {selectedZoneId && pageItems.length > 0 && (
+        <div className="relative">
+          <BusyOverlay show={isFetching && !isLoading} />
+          <Card padding="none">
           <div className="overflow-x-auto">
             <table className="w-full text-sm whitespace-nowrap">
               <thead>
@@ -204,16 +208,17 @@ export function CitiesPage() {
               <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
           )}
-        </Card>
+          </Card>
+        </div>
       )}
 
-      {filtered?.length === 0 && selectedZoneId && (
+      {!isLoading && selectedZoneId && pageItems.length === 0 && (
         <Card>
           <EmptyState
             icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" /></svg>}
-            title={search ? 'No cities found' : 'No cities yet'}
-            description={search ? `No results for "${search}"` : 'Add the first city for this zone.'}
-            action={!search ? <Button size="sm" icon={PlusIcon} onClick={() => setModalOpen(true)}>Add city</Button> : undefined}
+            title={debouncedSearch ? 'No cities found' : 'No cities yet'}
+            description={debouncedSearch ? `No results for "${search}"` : 'Add the first city for this zone.'}
+            action={!debouncedSearch ? <Button size="sm" icon={PlusIcon} onClick={() => setModalOpen(true)}>Add city</Button> : undefined}
           />
         </Card>
       )}

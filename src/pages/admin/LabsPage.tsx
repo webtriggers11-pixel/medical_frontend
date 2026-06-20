@@ -1,8 +1,8 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { KeyboardEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import {
-  useLabs, useCreateLab, useUpdateLab, useDeleteLab,
+  useLabsPage, useCreateLab, useUpdateLab, useDeleteLab,
   useBundledTests, useCreateBundledTest, useUpdateBundledTest, useDeleteBundledTest,
 } from '../../features/lab/hooks/useLabs';
 import { Card } from '../../components/ui/Card';
@@ -15,7 +15,8 @@ import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Pagination } from '../../components/ui/Pagination';
-import { usePagination } from '../../hooks/usePagination';
+import { BusyOverlay } from '../../components/ui/BusyOverlay';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { getApiErrorMessage } from '../../lib/apiError';
 import type { Lab, CreateLabInput, BundledTest, CreateBundledTestInput, UpdateBundledTestInput } from '../../types/lab.types';
 
@@ -438,22 +439,22 @@ function BundledTestsModal({ lab, open, onClose }: { lab: Lab; open: boolean; on
 // ── Main page ─────────────────────────────────────────────────────
 
 export function LabsPage() {
-  const { data: labs, isLoading, error } = useLabs();
-  const deleteLab = useDeleteLab();
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
+  const [page, setPage] = useState(1);
+  // Jump back to page 1 whenever the (debounced) search term changes.
+  useEffect(() => setPage(1), [debouncedSearch]);
+
+  const { data, isLoading, isFetching, error } = useLabsPage({ page, limit: 10, search: debouncedSearch });
+  const pageItems = data?.items ?? [];
+  const totalPages = data?.meta.totalPages ?? 1;
+  const total = data?.meta.total ?? 0;
+
+  const deleteLab = useDeleteLab();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Lab | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Lab | null>(null);
   const [bundledTestsLab, setBundledTestsLab] = useState<Lab | null>(null);
-
-  const filtered = labs?.filter((l) => {
-    const q = search.toLowerCase();
-    return l.name.toLowerCase().includes(q) || l.email.toLowerCase().includes(q) || l.contactName.toLowerCase().includes(q);
-  });
-
-  const { page, setPage, totalPages, pageItems } = usePagination(filtered ?? [], {
-    resetKey: `${search}`,
-  });
 
   const handleEdit = (l: Lab) => { setEditing(l); setModalOpen(true); };
   const handleClose = () => { setEditing(null); setModalOpen(false); };
@@ -465,7 +466,7 @@ export function LabsPage() {
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Labs</h1>
           <p className="text-slate-500 mt-1">
             Manage diagnostic labs and their test packages
-            {labs && <span className="text-slate-400"> · {labs.length} total</span>}
+            {data && <span className="text-slate-400"> · {total} total</span>}
           </p>
         </div>
         <Button icon={PlusIcon} onClick={() => setModalOpen(true)}>Add lab</Button>
@@ -487,8 +488,10 @@ export function LabsPage() {
         </Card>
       )}
 
-      {filtered && filtered.length > 0 && (
-        <Card padding="none">
+      {pageItems.length > 0 && (
+        <div className="relative">
+          <BusyOverlay show={isFetching && !isLoading} />
+          <Card padding="none">
           <div className="overflow-x-auto">
             <table className="w-full text-sm whitespace-nowrap">
               <thead>
@@ -553,16 +556,17 @@ export function LabsPage() {
               <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
           )}
-        </Card>
+          </Card>
+        </div>
       )}
 
-      {filtered?.length === 0 && (
+      {!isLoading && pageItems.length === 0 && (
         <Card>
           <EmptyState
             icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" /></svg>}
-            title={search ? 'No labs found' : 'No labs yet'}
-            description={search ? `No results for "${search}"` : 'Add your first diagnostic lab.'}
-            action={!search ? <Button size="sm" icon={PlusIcon} onClick={() => setModalOpen(true)}>Add lab</Button> : undefined}
+            title={debouncedSearch ? 'No labs found' : 'No labs yet'}
+            description={debouncedSearch ? `No results for "${search}"` : 'Add your first diagnostic lab.'}
+            action={!debouncedSearch ? <Button size="sm" icon={PlusIcon} onClick={() => setModalOpen(true)}>Add lab</Button> : undefined}
           />
         </Card>
       )}

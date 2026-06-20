@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { useBookingRequests, useCreateBooking } from '../../features/booking/hooks/useBookings';
-import { usePanels } from '../../features/panel/hooks/usePanels';
+import { useEffect, useState } from 'react';
+import { useBookingRequestsPage, useCreateBooking } from '../../features/booking/hooks/useBookings';
+import { usePanelsForClient } from '../../features/panel/hooks/usePanels';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -11,7 +11,8 @@ import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Pagination } from '../../components/ui/Pagination';
-import { usePagination } from '../../hooks/usePagination';
+import { BusyOverlay } from '../../components/ui/BusyOverlay';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { getApiErrorMessage } from '../../lib/apiError';
 import { format } from 'date-fns';
 import type { BookingRequest } from '../../types/booking.types';
@@ -21,16 +22,12 @@ const fmt = (n: number) => `₹${Number(n).toLocaleString('en-IN')}`;
 // ── Book Now modal — admin assigns panel ──────────────────────────
 
 function BookNowModal({ request, open, onClose }: { request: BookingRequest; open: boolean; onClose: () => void }) {
-  const { data: allPanels } = usePanels();
+  // Only panels priced for THIS client — filtered server-side.
+  const { data: assignedPanels = [] } = usePanelsForClient(request.clientId);
   const createBooking = useCreateBooking();
   const [panelId, setPanelId] = useState('');
   const [apiError, setApiError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
-  // Only panels assigned to THIS client
-  const assignedPanels = allPanels?.filter((p) =>
-    p.clientPricing?.some((cp) => cp.clientId === request.clientId)
-  ) ?? [];
 
   const panelOptions = assignedPanels.map((p) => ({ value: p.id, label: p.name }));
   const selectedPanel = assignedPanels.find((p) => p.id === panelId);
@@ -132,20 +129,17 @@ function BookNowModal({ request, open, onClose }: { request: BookingRequest; ope
 // ── Main page ─────────────────────────────────────────────────────
 
 export function BookingRequestsPage() {
-  const { data: requests, isLoading, error } = useBookingRequests();
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
+  const [page, setPage] = useState(1);
+  // Jump back to page 1 whenever the (debounced) search term changes.
+  useEffect(() => setPage(1), [debouncedSearch]);
+
+  const { data, isLoading, isFetching, error } = useBookingRequestsPage({ page, limit: 10, search: debouncedSearch });
+  const pageItems = data?.items ?? [];
+  const totalPages = data?.meta.totalPages ?? 1;
+  const total = data?.meta.total ?? 0;
   const [bookTarget, setBookTarget] = useState<BookingRequest | null>(null);
-
-  const filtered = requests?.filter((r) => {
-    const q = search.toLowerCase();
-    return (
-      r.name.toLowerCase().includes(q) ||
-      (r.employeeCode ?? '').toLowerCase().includes(q) ||
-      (r.client?.name ?? r.client?.email ?? '').toLowerCase().includes(q)
-    );
-  }) ?? [];
-
-  const { page, setPage, totalPages, pageItems } = usePagination(filtered ?? [], { resetKey: `${search}` });
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -154,7 +148,7 @@ export function BookingRequestsPage() {
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Booking Requests</h1>
           <p className="text-slate-500 mt-1">
             Candidates awaiting booking — assign a panel and confirm
-            {requests && <span className="text-slate-400"> · {requests.length} pending</span>}
+            {data && <span className="text-slate-400"> · {total} pending</span>}
           </p>
         </div>
         <SearchInput
@@ -174,7 +168,7 @@ export function BookingRequestsPage() {
         </Card>
       )}
 
-      {!isLoading && filtered.length === 0 && (
+      {!isLoading && pageItems.length === 0 && (
         <Card>
           <EmptyState
             icon={
@@ -188,8 +182,10 @@ export function BookingRequestsPage() {
         </Card>
       )}
 
-      {filtered.length > 0 && (
-        <Card padding="none">
+      {pageItems.length > 0 && (
+        <div className="relative">
+          <BusyOverlay show={isFetching && !isLoading} />
+          <Card padding="none">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -234,7 +230,8 @@ export function BookingRequestsPage() {
               <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
           )}
-        </Card>
+          </Card>
+        </div>
       )}
 
       {bookTarget && (

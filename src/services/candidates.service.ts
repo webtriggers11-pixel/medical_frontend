@@ -2,9 +2,11 @@ import api from '../api/axios.instance';
 import type { ApiResponse } from '../types/auth.types';
 import type {
   Candidate,
+  CandidateTypeCounts,
   CreateCandidateInput,
   BulkUploadResult,
 } from '../types/candidate.types';
+import type { Paginated } from '../types/pagination.types';
 
 export const candidatesService = {
   getAll: async (params?: {
@@ -21,6 +23,53 @@ export const candidatesService = {
         search: params?.search || undefined,
       },
     });
+    return res.data.data;
+  },
+
+  // Server-paginated candidate list. `with` opts into nested relations
+  // (e.g. 'booking' for the latest booking, 'reports' for report info) so a
+  // page renders cross-entity columns without loading whole tables.
+  getPage: async (params: {
+    page: number;
+    limit: number;
+    search?: string;
+    type?: string;
+    clientId?: string;
+    storeId?: string;
+    zoneId?: string;
+    cityId?: string;
+    labId?: string;
+    approve?: string;
+    status?: string;
+    from?: string;
+    to?: string;
+    with?: string;
+  }): Promise<Paginated<Candidate>> => {
+    const res = await api.get<ApiResponse<Paginated<Candidate>>>('/candidates', {
+      params: {
+        page: params.page,
+        limit: params.limit,
+        search: params.search?.trim() || undefined,
+        type: params.type || undefined,
+        clientId: params.clientId || undefined,
+        storeId: params.storeId || undefined,
+        zoneId: params.zoneId || undefined,
+        cityId: params.cityId || undefined,
+        labId: params.labId || undefined,
+        approve: params.approve || undefined,
+        status: params.status || undefined,
+        from: params.from || undefined,
+        to: params.to || undefined,
+        with: params.with || undefined,
+      },
+    });
+    return res.data.data;
+  },
+
+  getTypeCounts: async (): Promise<CandidateTypeCounts> => {
+    const res = await api.get<ApiResponse<CandidateTypeCounts>>(
+      '/candidates/type-counts',
+    );
     return res.data.data;
   },
 

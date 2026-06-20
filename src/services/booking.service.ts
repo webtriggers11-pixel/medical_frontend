@@ -1,11 +1,28 @@
 import api from '../api/axios.instance';
 import type { ApiResponse } from '../types/auth.types';
 import type { Booking, BookingRequest, CreateBookingInput, UpdateBookingStatusInput, RescheduleBookingInput } from '../types/booking.types';
+import type { Paginated } from '../types/pagination.types';
 
 export const bookingService = {
   // Admin — candidates awaiting booking
   getRequests: async (): Promise<BookingRequest[]> => {
     const res = await api.get<ApiResponse<BookingRequest[]>>('/bookings/requests');
+    return res.data.data;
+  },
+
+  // Admin — server-paginated + searched booking-requests list.
+  getRequestsPage: async (params: {
+    page: number;
+    limit: number;
+    search?: string;
+  }): Promise<Paginated<BookingRequest>> => {
+    const res = await api.get<ApiResponse<Paginated<BookingRequest>>>('/bookings/requests', {
+      params: {
+        page: params.page,
+        limit: params.limit,
+        search: params.search?.trim() || undefined,
+      },
+    });
     return res.data.data;
   },
 

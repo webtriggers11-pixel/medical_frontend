@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { queryKeys } from '../../../api/queryKeys';
 import { panelService } from '../../../services/panel.service';
 import type { CreatePanelInput, UpdatePanelInput, SetClientPricingInput } from '../../../types/panel.types';
@@ -7,6 +7,22 @@ export const usePanels = (labId?: string) =>
   useQuery({
     queryKey: labId ? queryKeys.panels.byLabId(labId) : queryKeys.panels.all,
     queryFn: () => panelService.getAll(labId),
+  });
+
+export const usePanelsPage = (params: { page: number; limit: number; search?: string }) =>
+  useQuery({
+    queryKey: ['panels', 'page', params],
+    queryFn: () => panelService.getPage(params),
+    placeholderData: keepPreviousData,
+  });
+
+// Panels priced for a specific client — filtered server-side (drives the
+// booking panel picker; replaces fetching all panels and filtering in JS).
+export const usePanelsForClient = (clientId: string | undefined) =>
+  useQuery({
+    queryKey: [...queryKeys.panels.all, 'client', clientId ?? ''] as const,
+    queryFn: () => panelService.getForClient(clientId as string),
+    enabled: !!clientId,
   });
 
 export const useCreatePanel = () => {

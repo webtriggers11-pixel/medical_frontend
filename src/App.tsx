@@ -17,7 +17,10 @@ declare module '@tanstack/react-query' {
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: 1, staleTime: 60 * 1000 },
+    // refetchOnWindowFocus off: with 60s staleTime, every tab-switch was
+    // re-downloading whole lists. Data still refreshes on mount + after
+    // mutations (which invalidate their query keys).
+    queries: { retry: 1, staleTime: 60 * 1000, refetchOnWindowFocus: false },
   },
   // One place to surface every mutation's outcome as a toast.
   mutationCache: new MutationCache({
