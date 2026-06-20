@@ -12,6 +12,7 @@ import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Pagination } from '../../components/ui/Pagination';
+import { BusyOverlay } from '../../components/ui/BusyOverlay';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { getApiErrorMessage } from '../../lib/apiError';
 import type { City } from '../../types/org.types';
@@ -92,7 +93,7 @@ export function CitiesPage() {
   // Jump back to page 1 whenever the (debounced) search term or selected zone changes.
   useEffect(() => setPage(1), [debouncedSearch, selectedZoneId]);
 
-  const { data, isLoading, error } = useCitiesPage(selectedZoneId, { page, limit: 10, search: debouncedSearch });
+  const { data, isLoading, isFetching, error } = useCitiesPage(selectedZoneId, { page, limit: 10, search: debouncedSearch });
   const pageItems = data?.items ?? [];
   const totalPages = data?.meta.totalPages ?? 1;
   const total = data?.meta.total ?? 0;
@@ -164,7 +165,9 @@ export function CitiesPage() {
       )}
 
       {selectedZoneId && pageItems.length > 0 && (
-        <Card padding="none">
+        <div className="relative">
+          <BusyOverlay show={isFetching && !isLoading} />
+          <Card padding="none">
           <div className="overflow-x-auto">
             <table className="w-full text-sm whitespace-nowrap">
               <thead>
@@ -205,7 +208,8 @@ export function CitiesPage() {
               <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
           )}
-        </Card>
+          </Card>
+        </div>
       )}
 
       {!isLoading && selectedZoneId && pageItems.length === 0 && (

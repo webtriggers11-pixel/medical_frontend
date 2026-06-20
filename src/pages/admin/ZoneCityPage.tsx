@@ -12,6 +12,7 @@ import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { SearchInput } from '../../components/ui/SearchInput';
+import { BusyOverlay } from '../../components/ui/BusyOverlay';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Pagination } from '../../components/ui/Pagination';
 import { getApiErrorMessage } from '../../lib/apiError';
@@ -149,7 +150,7 @@ export function ZoneCityPage() {
   const zoneDebounced = useDebouncedValue(zoneSearch, 300);
   const [zonePage, setZonePage] = useState(1);
   useEffect(() => setZonePage(1), [zoneDebounced]);
-  const { data: zoneData, isLoading: zonesLoading } = useZonesPage({ page: zonePage, limit: 10, search: zoneDebounced });
+  const { data: zoneData, isLoading: zonesLoading, isFetching: zoneFetching } = useZonesPage({ page: zonePage, limit: 10, search: zoneDebounced });
   const zoneItems = zoneData?.items ?? [];
   const zoneTotalPages = zoneData?.meta.totalPages ?? 1;
   const zoneTotal = zoneData?.meta.total ?? 0;
@@ -159,7 +160,7 @@ export function ZoneCityPage() {
   const cityDebounced = useDebouncedValue(citySearch, 300);
   const [cityPage, setCityPage] = useState(1);
   useEffect(() => setCityPage(1), [cityDebounced, selectedZone?.id]);
-  const { data: cityData, isLoading: citiesLoading } = useCitiesPage(selectedZone?.id ?? '', { page: cityPage, limit: 10, search: cityDebounced });
+  const { data: cityData, isLoading: citiesLoading, isFetching: cityFetching } = useCitiesPage(selectedZone?.id ?? '', { page: cityPage, limit: 10, search: cityDebounced });
   const cityItems = cityData?.items ?? [];
   const cityTotalPages = cityData?.meta.totalPages ?? 1;
   const cityTotal = cityData?.meta.total ?? 0;
@@ -236,7 +237,8 @@ export function ZoneCityPage() {
             </Card>
           )}
 
-          <div className="space-y-1.5">
+          <div className="relative space-y-1.5">
+            <BusyOverlay show={zoneFetching && !zonesLoading} />
             {zoneItems.map((z) => {
               const isSelected = selectedZone?.id === z.id;
               return (
@@ -335,7 +337,9 @@ export function ZoneCityPage() {
               )}
 
               {!citiesLoading && cityItems.length > 0 && (
-                <Card padding="none">
+                <div className="relative">
+                  <BusyOverlay show={cityFetching && !citiesLoading} />
+                  <Card padding="none">
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
@@ -378,7 +382,8 @@ export function ZoneCityPage() {
                       <Pagination currentPage={cityPage} totalPages={cityTotalPages} onPageChange={setCityPage} />
                     </div>
                   )}
-                </Card>
+                  </Card>
+                </div>
               )}
             </>
           )}

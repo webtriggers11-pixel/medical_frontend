@@ -15,6 +15,7 @@ import { Modal } from '../../components/ui/Modal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
+import { BusyOverlay } from '../../components/ui/BusyOverlay';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Pagination } from '../../components/ui/Pagination';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -235,7 +236,7 @@ export function StoresPage() {
   const goToAddStore = () => navigate(isAdmin ? '/admin/stores/new' : '/stores/new');
 
   // Server-paginated + server-filtered store list.
-  const { data, isLoading, error } = useStoresPage({
+  const { data, isLoading, isFetching, error } = useStoresPage({
     page,
     limit: 10,
     search: debouncedSearch,
@@ -332,7 +333,9 @@ export function StoresPage() {
       )}
 
       {pageItems.length > 0 && (
-        <Card padding="none">
+        <div className="relative">
+          <BusyOverlay show={isFetching && !isLoading} />
+          <Card padding="none">
           <div className="overflow-x-auto">
             <table className="w-full text-sm whitespace-nowrap">
               <thead>
@@ -401,7 +404,8 @@ export function StoresPage() {
               <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
           )}
-        </Card>
+          </Card>
+        </div>
       )}
 
       {!isLoading && hasFilters && pageItems.length === 0 && (

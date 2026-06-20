@@ -13,6 +13,7 @@ import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Pagination } from '../../components/ui/Pagination';
+import { BusyOverlay } from '../../components/ui/BusyOverlay';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 
 const EyeIcon = (
@@ -39,7 +40,7 @@ export function ReportsPage() {
   // Reset to page 1 when the search changes.
   useEffect(() => setPage(1), [debouncedSearch]);
 
-  const { data, isLoading } = useCandidatesPage({
+  const { data, isLoading, isFetching } = useCandidatesPage({
     page,
     limit: 10,
     search: debouncedSearch,
@@ -106,7 +107,9 @@ export function ReportsPage() {
       {isLoading && <SkeletonTable rows={6} />}
 
       {!isLoading && pageItems.length > 0 && (
-        <Card padding="none">
+        <div className="relative">
+          <BusyOverlay show={isFetching && !isLoading} />
+          <Card padding="none">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -201,7 +204,8 @@ export function ReportsPage() {
               <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
           )}
-        </Card>
+          </Card>
+        </div>
       )}
 
       {!isLoading && pageItems.length === 0 && (

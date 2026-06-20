@@ -12,6 +12,7 @@ import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Pagination } from '../../components/ui/Pagination';
+import { BusyOverlay } from '../../components/ui/BusyOverlay';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { format } from 'date-fns';
 import type { CandidateType } from '../../types/candidate.types';
@@ -78,7 +79,7 @@ export function CandidatesPage() {
   // Reset to page 1 whenever the search term or type filter changes.
   useEffect(() => setPage(1), [debouncedSearch, typeFilter]);
 
-  const { data, isLoading, error } = useCandidatesPage({
+  const { data, isLoading, isFetching, error } = useCandidatesPage({
     page,
     limit: 10,
     search: debouncedSearch,
@@ -163,7 +164,9 @@ export function CandidatesPage() {
       )}
 
       {pageItems.length > 0 && (
-        <Card padding="none">
+        <div className="relative">
+          <BusyOverlay show={isFetching && !isLoading} />
+          <Card padding="none">
           <div className="overflow-x-auto">
             <table className="w-full text-sm whitespace-nowrap">
               <thead>
@@ -337,7 +340,8 @@ export function CandidatesPage() {
               <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
           )}
-        </Card>
+          </Card>
+        </div>
       )}
 
       {!isLoading && pageItems.length === 0 && !isEmpty && (

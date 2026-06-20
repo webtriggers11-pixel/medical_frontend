@@ -12,6 +12,7 @@ import { DateRangePicker, type DateRange } from '../../components/ui/DateRangePi
 import { FunnelChart, type FunnelDatum } from '../../components/charts/FunnelChart';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { Pagination } from '../../components/ui/Pagination';
+import { BusyOverlay } from '../../components/ui/BusyOverlay';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useCandidatesPage, useSetCandidateApproval } from '../../features/candidates/hooks/useCandidates';
 import { Switch } from '../../components/ui/Switch';
@@ -376,7 +377,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
   useEffect(() => { setPage(1); }, [filterKey]);
 
   /* ── server-paginated, server-filtered candidate page ── */
-  const { data, isLoading, error } = useCandidatesPage({
+  const { data, isLoading, isFetching, error } = useCandidatesPage({
     page,
     limit: 10,
     search: debouncedSearch,
@@ -588,6 +589,8 @@ function AdminDashboard({ firstName }: { firstName: string }) {
         )}
 
         {!isLoading && !error && pageItems.length > 0 && (
+          <div className="relative">
+            <BusyOverlay show={isFetching && !isLoading} />
           <div className="overflow-x-auto">
             <div className="max-h-[calc(100vh-360px)] overflow-y-auto">
               <table className="w-max min-w-full text-sm">
@@ -819,6 +822,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
                 <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
               </div>
             )}
+          </div>
           </div>
         )}
       </div>

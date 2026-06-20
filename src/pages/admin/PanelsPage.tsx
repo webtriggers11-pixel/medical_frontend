@@ -6,6 +6,7 @@ import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Pagination } from '../../components/ui/Pagination';
+import { BusyOverlay } from '../../components/ui/BusyOverlay';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 
 const fmt = (n: number) => `₹${Number(n).toLocaleString('en-IN')}`;
@@ -16,7 +17,7 @@ export function PanelsPage() {
   const [page, setPage] = useState(1);
   useEffect(() => setPage(1), [debouncedSearch]);
 
-  const { data, isLoading, error } = usePanelsPage({ page, limit: 10, search: debouncedSearch });
+  const { data, isLoading, isFetching, error } = usePanelsPage({ page, limit: 10, search: debouncedSearch });
   const pageItems = data?.items ?? [];
   const totalPages = data?.meta.totalPages ?? 1;
   const total = data?.meta.total ?? 0;
@@ -48,7 +49,9 @@ export function PanelsPage() {
       )}
 
       {pageItems.length > 0 && (
-        <Card padding="none">
+        <div className="relative">
+          <BusyOverlay show={isFetching && !isLoading} />
+          <Card padding="none">
           <div className="overflow-x-auto">
             <table className="w-max min-w-full text-sm">
               <thead>
@@ -180,7 +183,8 @@ export function PanelsPage() {
               <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
           )}
-        </Card>
+          </Card>
+        </div>
       )}
 
       {!isLoading && pageItems.length === 0 && (

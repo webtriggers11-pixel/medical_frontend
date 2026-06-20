@@ -11,6 +11,7 @@ import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Pagination } from '../../components/ui/Pagination';
+import { BusyOverlay } from '../../components/ui/BusyOverlay';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { getApiErrorMessage } from '../../lib/apiError';
 import { format } from 'date-fns';
@@ -134,7 +135,7 @@ export function BookingRequestsPage() {
   // Jump back to page 1 whenever the (debounced) search term changes.
   useEffect(() => setPage(1), [debouncedSearch]);
 
-  const { data, isLoading, error } = useBookingRequestsPage({ page, limit: 10, search: debouncedSearch });
+  const { data, isLoading, isFetching, error } = useBookingRequestsPage({ page, limit: 10, search: debouncedSearch });
   const pageItems = data?.items ?? [];
   const totalPages = data?.meta.totalPages ?? 1;
   const total = data?.meta.total ?? 0;
@@ -182,7 +183,9 @@ export function BookingRequestsPage() {
       )}
 
       {pageItems.length > 0 && (
-        <Card padding="none">
+        <div className="relative">
+          <BusyOverlay show={isFetching && !isLoading} />
+          <Card padding="none">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -227,7 +230,8 @@ export function BookingRequestsPage() {
               <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
           )}
-        </Card>
+          </Card>
+        </div>
       )}
 
       {bookTarget && (
