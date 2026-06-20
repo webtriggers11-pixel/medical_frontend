@@ -1,10 +1,18 @@
 import api from '../api/axios.instance';
 import type { ApiResponse } from '../types/auth.types';
+import type { Paginated } from '../types/pagination.types';
 import type { Lab, CreateLabInput, UpdateLabInput, BundledTest, CreateBundledTestInput, UpdateBundledTestInput } from '../types/lab.types';
 
 export const labService = {
   getAll: async (): Promise<Lab[]> => {
     const res = await api.get<ApiResponse<Lab[]>>('/labs');
+    return res.data.data;
+  },
+
+  getPage: async (params: { page: number; limit: number; search?: string }): Promise<Paginated<Lab>> => {
+    const res = await api.get<ApiResponse<Paginated<Lab>>>('/labs', {
+      params: { page: params.page, limit: params.limit, search: params.search?.trim() || undefined },
+    });
     return res.data.data;
   },
 

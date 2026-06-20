@@ -1,3 +1,6 @@
+import type { Booking } from './booking.types';
+import type { Report } from './report.types';
+
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
 export type CandidateType = 'NEW_JOINER' | 'EXISTING' | 'ANNUAL';
 
@@ -30,6 +33,18 @@ export interface Candidate {
     city?: { id: string; name: string; zone?: { id: string; name: string } | null } | null;
   } | null;
   client?: { id: string; name: string | null; email: string } | null;
+  // Present only when the list endpoint is called with `with=booking` —
+  // the candidate's latest non-cancelled booking (index 0), if any.
+  bookings?: Booking[];
+  // Present only when the list endpoint is called with `with=reports`.
+  reports?: Report[];
+}
+
+export interface CandidateTypeCounts {
+  ALL: number;
+  NEW_JOINER: number;
+  EXISTING: number;
+  ANNUAL: number;
 }
 
 export interface CreateCandidateInput {

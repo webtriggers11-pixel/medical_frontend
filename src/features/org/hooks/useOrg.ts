@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../../api/queryKeys';
 import { orgService } from '../../../services/org.service';
 import type { CreateZoneInput, CreateCityInput, CreateStoreInput } from '../../../types/org.types';
@@ -8,6 +8,31 @@ export const useZones = () =>
   useQuery({
     queryKey: queryKeys.org.zones,
     queryFn: () => orgService.listZones(),
+  });
+
+// Server-paginated + searched variants for the management tables. Keyed under
+// the same prefixes the full-list hooks use, so existing mutation
+// invalidations (which target those prefixes) refresh these too.
+export const useZonesPage = (params: { page: number; limit: number; search?: string }) =>
+  useQuery({
+    queryKey: [...queryKeys.org.zones, 'page', params] as const,
+    queryFn: () => orgService.listZonesPage(params),
+    placeholderData: keepPreviousData,
+  });
+
+export const useCitiesPage = (zoneId: string, params: { page: number; limit: number; search?: string }) =>
+  useQuery({
+    queryKey: [...queryKeys.org.cities(zoneId), 'page', params] as const,
+    queryFn: () => orgService.listCitiesPage(zoneId, params),
+    enabled: !!zoneId,
+    placeholderData: keepPreviousData,
+  });
+
+export const useStoresPage = (params: { page: number; limit: number; search?: string; zoneId?: string; cityId?: string }) =>
+  useQuery({
+    queryKey: [...queryKeys.org.storesAll, 'page', params] as const,
+    queryFn: () => orgService.listStoresPage(params),
+    placeholderData: keepPreviousData,
   });
 
 export const useCreateZone = () => {

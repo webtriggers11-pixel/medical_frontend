@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { useCandidates } from '../../features/candidates/hooks/useCandidates';
-import { useReports } from '../../features/reports/hooks/useReports';
+import { useCandidatesPage } from '../../features/candidates/hooks/useCandidates';
 import { downloadReportFiles as downloadFiles } from '../../features/reports/lib/fileDownload';
 import { ReportPreviewDrawer } from '../../features/reports/components/ReportPreviewDrawer';
 import { FITNESS_VARIANT } from '../../types/report.types';
-import type { Report, ReportFile } from '../../types/report.types';
+import type { ReportFile } from '../../types/report.types';
+import type { Candidate } from '../../types/candidate.types';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -13,7 +13,7 @@ import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Pagination } from '../../components/ui/Pagination';
-import { usePagination } from '../../hooks/usePagination';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 
 const EyeIcon = (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -33,57 +33,41 @@ const FileIcon = (
 );
 
 export function ReportsPage() {
-  const { data: candidates, isLoading: candidatesLoading } = useCandidates();
-  const { data: reports, isLoading: reportsLoading } = useReports();
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
+  const [page, setPage] = useState(1);
+  // Reset to page 1 when the search changes.
+  useEffect(() => setPage(1), [debouncedSearch]);
+
+  const { data, isLoading } = useCandidatesPage({
+    page,
+    limit: 10,
+    search: debouncedSearch,
+    with: 'reports',
+  });
+  const pageItems = data?.items ?? [];
+  const totalPages = data?.meta.totalPages ?? 1;
+  const total = data?.meta.total ?? 0;
+
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [preview, setPreview] = useState<{ candidateName: string; files: ReportFile[]; index: number } | null>(null);
+  // Selection is scoped to the current page; clear it when the page or search
+  // changes so it never references off-page candidates.
+  useEffect(() => setSelected(new Set()), [page, debouncedSearch]);
 
-  const reportsByCandidate = useMemo(() => {
-    const m = new Map<string, Report[]>();
-    (reports ?? []).forEach((r) => {
-      const list = m.get(r.candidateId) ?? [];
-      list.push(r);
-      m.set(r.candidateId, list);
-    });
-    return m;
-  }, [reports]);
+  const filesFor = (c: Candidate): ReportFile[] =>
+    (c.reports ?? []).flatMap((r) => r.files ?? []);
 
-  const filesFor = (id: string): ReportFile[] =>
-    (reportsByCandidate.get(id) ?? []).flatMap((r) => r.files ?? []);
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return (candidates ?? []).filter(
-      (c) =>
-        !q ||
-        c.name.toLowerCase().includes(q) ||
-        (c.employeeCode ?? '').toLowerCase().includes(q) ||
-        (c.store?.name ?? '').toLowerCase().includes(q),
-    );
-  }, [candidates, search]);
-
-  const { page, setPage, totalPages, pageItems } = usePagination(filtered, { resetKey: search });
-
-  // Multi-select for bulk download — only candidates that actually have files.
-  const selectableIds = useMemo(
-    () => filtered.filter((c) => filesFor(c.id).length > 0).map((c) => c.id),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [filtered, reportsByCandidate],
-  );
+  // Multi-select for bulk download — only candidates on this page with files.
+  const selectableIds = pageItems.filter((c) => filesFor(c).length > 0).map((c) => c.id);
   const allChecked = selectableIds.length > 0 && selectableIds.every((id) => selected.has(id));
   const someChecked = !allChecked && selectableIds.some((id) => selected.has(id));
   const toggle = (id: string) =>
     setSelected((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const toggleAll = () => setSelected(allChecked ? new Set() : new Set(selectableIds));
-  const selectedFiles = useMemo(
-    () => Array.from(selected).flatMap((id) => filesFor(id)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selected, reportsByCandidate],
-  );
-
-  const isLoading = candidatesLoading || reportsLoading;
-  const withReports = reportsByCandidate.size;
+  const selectedFiles = pageItems
+    .filter((c) => selected.has(c.id))
+    .flatMap((c) => filesFor(c));
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -93,7 +77,7 @@ export function ReportsPage() {
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Reports</h1>
           <p className="text-slate-500 mt-1">
             Medical reports uploaded by the admin for your candidates
-            {candidates && <span className="text-slate-400"> · {withReports} of {candidates.length} have a report</span>}
+            {data && <span className="text-slate-400"> · {total} candidate{total === 1 ? '' : 's'}</span>}
           </p>
         </div>
         <SearchInput
@@ -121,7 +105,7 @@ export function ReportsPage() {
 
       {isLoading && <SkeletonTable rows={6} />}
 
-      {!isLoading && filtered.length > 0 && (
+      {!isLoading && pageItems.length > 0 && (
         <Card padding="none">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -145,9 +129,9 @@ export function ReportsPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {pageItems.map((c) => {
-                  const reps = reportsByCandidate.get(c.id) ?? [];
+                  const reps = c.reports ?? [];
                   const latest = reps[0]; // backend returns newest first
-                  const files = reps.flatMap((r) => r.files ?? []);
+                  const files = filesFor(c);
                   const hasFiles = files.length > 0;
                   const checked = selected.has(c.id);
                   return (
@@ -220,7 +204,7 @@ export function ReportsPage() {
         </Card>
       )}
 
-      {!isLoading && filtered.length === 0 && (
+      {!isLoading && pageItems.length === 0 && (
         <Card>
           <EmptyState
             icon={FileIcon}

@@ -17,6 +17,36 @@ export const useCandidates = (params?: {
     placeholderData: keepPreviousData,
   });
 
+// Server-paginated candidate list. Pass `with: 'booking'` / `'reports'` to
+// include per-candidate cross-entity data for list columns.
+export const useCandidatesPage = (params: {
+  page: number;
+  limit: number;
+  search?: string;
+  type?: string;
+  clientId?: string;
+  storeId?: string;
+  zoneId?: string;
+  cityId?: string;
+  labId?: string;
+  approve?: string;
+  status?: string;
+  from?: string;
+  to?: string;
+  with?: string;
+}) =>
+  useQuery({
+    queryKey: [...queryKeys.candidates.all, 'page', params] as const,
+    queryFn: () => candidatesService.getPage(params),
+    placeholderData: keepPreviousData,
+  });
+
+export const useCandidateTypeCounts = () =>
+  useQuery({
+    queryKey: [...queryKeys.candidates.all, 'type-counts'] as const,
+    queryFn: () => candidatesService.getTypeCounts(),
+  });
+
 export const useSetCandidateApproval = () => {
   const qc = useQueryClient();
   return useMutation({

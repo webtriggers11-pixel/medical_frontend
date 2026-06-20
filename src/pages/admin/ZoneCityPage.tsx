@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import {
-  useZones, useCreateZone, useUpdateZone, useDeleteZone,
-  useCities, useCreateCity, useUpdateCity, useDeleteCity,
+  useZonesPage, useCreateZone, useUpdateZone, useDeleteZone,
+  useCitiesPage, useCreateCity, useUpdateCity, useDeleteCity,
 } from '../../features/org/hooks/useOrg';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -13,7 +14,6 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Pagination } from '../../components/ui/Pagination';
-import { usePagination } from '../../hooks/usePagination';
 import { getApiErrorMessage } from '../../lib/apiError';
 import type { Zone, City } from '../../types/org.types';
 
@@ -139,13 +139,30 @@ function CityModal({
 // ── Main page ─────────────────────────────────────────────────────
 
 export function ZoneCityPage() {
-  const { data: zones, isLoading: zonesLoading } = useZones();
   const deleteZone = useDeleteZone();
   const deleteCity = useDeleteCity;
 
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
+
+  // Zones table — server-side search + pagination
   const [zoneSearch, setZoneSearch] = useState('');
+  const zoneDebounced = useDebouncedValue(zoneSearch, 300);
+  const [zonePage, setZonePage] = useState(1);
+  useEffect(() => setZonePage(1), [zoneDebounced]);
+  const { data: zoneData, isLoading: zonesLoading } = useZonesPage({ page: zonePage, limit: 10, search: zoneDebounced });
+  const zoneItems = zoneData?.items ?? [];
+  const zoneTotalPages = zoneData?.meta.totalPages ?? 1;
+  const zoneTotal = zoneData?.meta.total ?? 0;
+
+  // Cities table — server-side search + pagination (per selected zone)
   const [citySearch, setCitySearch] = useState('');
+  const cityDebounced = useDebouncedValue(citySearch, 300);
+  const [cityPage, setCityPage] = useState(1);
+  useEffect(() => setCityPage(1), [cityDebounced, selectedZone?.id]);
+  const { data: cityData, isLoading: citiesLoading } = useCitiesPage(selectedZone?.id ?? '', { page: cityPage, limit: 10, search: cityDebounced });
+  const cityItems = cityData?.items ?? [];
+  const cityTotalPages = cityData?.meta.totalPages ?? 1;
+  const cityTotal = cityData?.meta.total ?? 0;
 
   const [zoneModal, setZoneModal] = useState(false);
   const [editingZone, setEditingZone] = useState<Zone | null>(null);
@@ -155,23 +172,7 @@ export function ZoneCityPage() {
   const [editingCity, setEditingCity] = useState<City | null>(null);
   const [deleteCityTarget, setDeleteCityTarget] = useState<City | null>(null);
 
-  const { data: cities, isLoading: citiesLoading } = useCities(selectedZone?.id ?? '');
   const deleteCityMutation = deleteCity(selectedZone?.id ?? '');
-
-  const filteredZones = zones?.filter((z) =>
-    z.name.toLowerCase().includes(zoneSearch.toLowerCase())
-  ) ?? [];
-
-  const filteredCities = cities?.filter((c) =>
-    c.name.toLowerCase().includes(citySearch.toLowerCase())
-  ) ?? [];
-
-  const { page: zonePage, setPage: setZonePage, totalPages: zoneTotalPages, pageItems: zoneItems } = usePagination(filteredZones, {
-    resetKey: zoneSearch,
-  });
-  const { page: cityPage, setPage: setCityPage, totalPages: cityTotalPages, pageItems: cityItems } = usePagination(filteredCities, {
-    resetKey: `${selectedZone?.id ?? ''}|${citySearch}`,
-  });
 
   const handleZoneSelect = (z: Zone) => {
     setSelectedZone(z);
@@ -198,7 +199,7 @@ export function ZoneCityPage() {
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Zone & City</h1>
           <p className="text-slate-500 mt-1">
             Manage geographic zones and their cities
-            {zones && <span className="text-slate-400"> · {zones.length} zones</span>}
+            {zoneTotal > 0 && <span className="text-slate-400"> · {zoneTotal} zones</span>}
           </p>
         </div>
         <Button icon={PlusIcon} onClick={() => { setEditingZone(null); setZoneModal(true); }}>
@@ -224,7 +225,7 @@ export function ZoneCityPage() {
             </div>
           )}
 
-          {!zonesLoading && filteredZones.length === 0 && (
+          {!zonesLoading && zoneItems.length === 0 && (
             <Card>
               <EmptyState
                 icon={MapPinIcon}
@@ -293,7 +294,7 @@ export function ZoneCityPage() {
                     {selectedZone.name} Zone
                   </p>
                   <p className="text-sm text-slate-500">
-                    {cities?.length ?? 0} {cities?.length === 1 ? 'city' : 'cities'}
+                    {cityTotal} {cityTotal === 1 ? 'city' : 'cities'}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -320,7 +321,7 @@ export function ZoneCityPage() {
                 </div>
               )}
 
-              {!citiesLoading && filteredCities.length === 0 && (
+              {!citiesLoading && cityItems.length === 0 && (
                 <Card>
                   <EmptyState
                     icon={MapPinIcon}
@@ -333,7 +334,7 @@ export function ZoneCityPage() {
                 </Card>
               )}
 
-              {!citiesLoading && filteredCities.length > 0 && (
+              {!citiesLoading && cityItems.length > 0 && (
                 <Card padding="none">
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">

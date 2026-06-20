@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { usersService } from '../../../services/users.service';
 import { queryKeys } from '../../../api/queryKeys';
 import type { CreateClientInput } from '../../../types/user.types';
@@ -8,6 +13,18 @@ export const useUsers = () =>
   useQuery({
     queryKey: queryKeys.users.all,
     queryFn: usersService.getAll,
+  });
+
+// Server-paginated + searched clients list for the Clients table.
+export const useClientsPage = (params: {
+  page: number;
+  limit: number;
+  search?: string;
+}) =>
+  useQuery({
+    queryKey: [...queryKeys.users.all, 'page', params] as const,
+    queryFn: () => usersService.getPage(params),
+    placeholderData: keepPreviousData,
   });
 
 export const useClientById = (id: string) =>

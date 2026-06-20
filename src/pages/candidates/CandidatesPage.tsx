@@ -1,7 +1,6 @@
-import { useState, Fragment } from 'react';
+import { useEffect, useState, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCandidates } from '../../features/candidates/hooks/useCandidates';
-import { useBookings } from '../../features/booking/hooks/useBookings';
+import { useCandidatesPage, useCandidateTypeCounts } from '../../features/candidates/hooks/useCandidates';
 import { BulkUploadModal } from '../../features/candidates/components/BulkUploadModal';
 import { RescheduleModal } from '../../features/booking/components/RescheduleModal';
 import { candidatesService } from '../../services/candidates.service';
@@ -13,7 +12,7 @@ import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Pagination } from '../../components/ui/Pagination';
-import { usePagination } from '../../hooks/usePagination';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { format } from 'date-fns';
 import type { CandidateType } from '../../types/candidate.types';
 import { bookingStatusLabel, bookingStatusVariant, isSchedulePassed } from '../../types/booking.types';
@@ -72,21 +71,29 @@ const STAT_TILES: { key: TypeFilter; label: string; bg: string; color: string; i
 
 export function CandidatesPage() {
   const navigate = useNavigate();
-  const { data: candidates, isLoading, error } = useCandidates();
-  const { data: bookings } = useBookings();
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('ALL');
+  const [page, setPage] = useState(1);
+  // Reset to page 1 whenever the search term or type filter changes.
+  useEffect(() => setPage(1), [debouncedSearch, typeFilter]);
+
+  const { data, isLoading, error } = useCandidatesPage({
+    page,
+    limit: 10,
+    search: debouncedSearch,
+    type: typeFilter === 'ALL' ? undefined : typeFilter,
+    with: 'booking',
+  });
+  const { data: counts } = useCandidateTypeCounts();
+  const pageItems = data?.items ?? [];
+  const totalPages = data?.meta.totalPages ?? 1;
+  const total = data?.meta.total ?? 0;
+
   const [bulkOpen, setBulkOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [rescheduleTarget, setRescheduleTarget] = useState<{ booking: Booking; candidateName: string } | null>(null);
-
-  // Active booking per candidate
-  const bookingByCandidate = (bookings ?? []).reduce((acc, b) => {
-    if (b.status === 'CANCELLED') return acc;
-    if (!acc[b.candidateId]) acc[b.candidateId] = b;
-    return acc;
-  }, {} as Record<string, Booking>);
 
   const handleDownloadTemplate = async () => {
     setDownloading(true);
@@ -94,29 +101,8 @@ export function CandidatesPage() {
     finally { setDownloading(false); }
   };
 
-  const counts = (candidates ?? []).reduce(
-    (acc, c) => { acc.ALL += 1; acc[c.candidateType] += 1; return acc; },
-    { ALL: 0, NEW_JOINER: 0, EXISTING: 0, ANNUAL: 0 } as Record<TypeFilter, number>,
-  );
-
-  const filtered = candidates?.filter((c) => {
-    if (typeFilter !== 'ALL' && c.candidateType !== typeFilter) return false;
-    const q = search.toLowerCase();
-    return (
-      c.name.toLowerCase().includes(q) ||
-      (c.employeeCode ?? '').toLowerCase().includes(q) ||
-      c.mobile.includes(q) ||
-      (c.email ?? '').toLowerCase().includes(q) ||
-      (c.store?.name ?? '').toLowerCase().includes(q)
-    );
-  });
-
   const hasFilter = !!search || typeFilter !== 'ALL';
-  const isEmpty = !!candidates && candidates.length === 0;
-
-  const { page, setPage, totalPages, pageItems } = usePagination(filtered ?? [], {
-    resetKey: `${search}|${typeFilter}`,
-  });
+  const isEmpty = !!counts && counts.ALL === 0;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -125,7 +111,7 @@ export function CandidatesPage() {
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Candidate Management</h1>
           <p className="text-slate-500 mt-1">
             Add, import and track candidates
-            {candidates && <span className="text-slate-400"> · {candidates.length} total</span>}
+            {counts && <span className="text-slate-400"> · {counts.ALL} total</span>}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
@@ -150,7 +136,7 @@ export function CandidatesPage() {
               className={`group rounded-2xl border bg-surface p-4 text-left shadow-card transition-all hover:shadow-card-hover ${active ? 'border-primary-400 ring-2 ring-primary-500/15' : 'border-border/70'}`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-2xl font-bold tracking-tight text-slate-900">{counts[t.key]}</span>
+                <span className="text-2xl font-bold tracking-tight text-slate-900">{counts?.[t.key] ?? 0}</span>
                 <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${t.bg} ${t.color}`}>{t.icon}</span>
               </div>
               <p className="mt-1 text-sm text-slate-500">{t.label}</p>
@@ -163,7 +149,7 @@ export function CandidatesPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} onClear={() => setSearch('')} placeholder="Search candidates..." className="w-full sm:w-80" />
         <div className="flex items-center gap-3 text-sm text-slate-500">
-          {filtered && <span>{filtered.length} {filtered.length === 1 ? 'candidate' : 'candidates'}{typeFilter !== 'ALL' && <> · {typeLabel[typeFilter]}</>}</span>}
+          {data && <span>{total} {total === 1 ? 'candidate' : 'candidates'}{typeFilter !== 'ALL' && <> · {typeLabel[typeFilter]}</>}</span>}
           {hasFilter && <button onClick={() => { setSearch(''); setTypeFilter('ALL'); }} className="font-medium text-primary-600 hover:text-primary-700">Clear</button>}
         </div>
       </div>
@@ -176,7 +162,7 @@ export function CandidatesPage() {
         </Card>
       )}
 
-      {filtered && filtered.length > 0 && (
+      {pageItems.length > 0 && (
         <Card padding="none">
           <div className="overflow-x-auto">
             <table className="w-full text-sm whitespace-nowrap">
@@ -196,9 +182,8 @@ export function CandidatesPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {pageItems.map((c) => {
-                  const booking = bookingByCandidate[c.id];
+                  const booking = c.bookings?.[0];
                   const isExpanded = expandedId === c.id;
-                  const isBooked = !!booking;
                   return (
                     <Fragment key={c.id}>
                       <tr className={`group transition-colors ${isExpanded ? 'bg-primary-50/60' : 'hover:bg-slate-50/70'}`}>
@@ -239,7 +224,7 @@ export function CandidatesPage() {
                           )}
                         </td>
                         <td className="px-5 py-3.5">
-                          {isBooked ? (
+                          {booking ? (
                             <Badge variant={bookingStatusVariant(booking)} size="sm">{bookingStatusLabel(booking)}</Badge>
                           ) : c.appointmentDate ? (
                             <Badge variant="warning" size="sm">Requested</Badge>
@@ -248,7 +233,7 @@ export function CandidatesPage() {
                           )}
                         </td>
                         <td className="px-5 py-3.5">
-                          {isBooked ? (
+                          {booking ? (
                             <div className="flex items-center justify-end gap-2">
                               {isSchedulePassed(booking) && (
                                 <Button
@@ -355,7 +340,7 @@ export function CandidatesPage() {
         </Card>
       )}
 
-      {filtered && filtered.length === 0 && !isEmpty && (
+      {!isLoading && pageItems.length === 0 && !isEmpty && (
         <Card>
           <EmptyState
             icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>}

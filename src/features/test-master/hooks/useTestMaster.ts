@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { testMasterService } from '../../../services/testMaster.service';
 import { queryKeys } from '../../../api/queryKeys';
 import type { CreateTestMasterInput, UpdateTestMasterInput } from '../../../types/testMaster.types';
@@ -7,6 +7,13 @@ export const useTestMasters = () =>
   useQuery({
     queryKey: queryKeys.testMasters.all,
     queryFn: testMasterService.getAll,
+  });
+
+export const useTestMastersPage = (params: { page: number; limit: number; search?: string }) =>
+  useQuery({
+    queryKey: ['test-masters', 'page', params],
+    queryFn: () => testMasterService.getPage(params),
+    placeholderData: keepPreviousData,
   });
 
 export const useCreateTestMaster = () => {

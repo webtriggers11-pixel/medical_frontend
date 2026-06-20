@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { useClientById, useResetPassword } from '../../features/users/hooks/useUsers';
-import { usePanels, useSetPanelPricing, useRemovePanelPricing } from '../../features/panel/hooks/usePanels';
+import { usePanelsForClient, useSetPanelPricing, useRemovePanelPricing } from '../../features/panel/hooks/usePanels';
 import { useLabs } from '../../features/lab/hooks/useLabs';
 import { useTestMasters } from '../../features/test-master/hooks/useTestMaster';
 import { panelService } from '../../services/panel.service';
@@ -414,16 +414,13 @@ function EditPricingForm({
 // ── Panels tab ────────────────────────────────────────────────────
 
 function PanelsTab({ clientId }: { clientId: string }) {
-  const { data: allPanels, isLoading, refetch } = usePanels();
+  // Panels priced for this client — filtered server-side.
+  const { data: assignedPanels = [], isLoading, refetch } = usePanelsForClient(clientId);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingPanel, setEditingPanel] = useState<Panel | null>(null);
   const [removeTarget, setRemoveTarget] = useState<Panel | null>(null);
 
-  const assignedPanels = allPanels?.filter((p) =>
-    p.clientPricing?.some((cp) => cp.clientId === clientId)
-  ) ?? [];
-
-  const { page, setPage, totalPages, pageItems } = usePagination(assignedPanels ?? [], {
+  const { page, setPage, totalPages, pageItems } = usePagination(assignedPanels, {
     resetKey: `${clientId}-${assignedPanels.length}`,
   });
 

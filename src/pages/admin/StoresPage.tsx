@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import {
-  useZones, useCities, useStores,
+  useZones, useCities, useStoresPage,
   useUpdateStore, useDeleteStore,
 } from '../../features/org/hooks/useOrg';
 import { useAuthStore } from '../../store/auth.store';
@@ -17,7 +17,7 @@ import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Pagination } from '../../components/ui/Pagination';
-import { usePagination } from '../../hooks/usePagination';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { getApiErrorMessage } from '../../lib/apiError';
 import type { StoreWithLocation } from '../../types/org.types';
 
@@ -218,7 +218,6 @@ export function StoresPage() {
   const currentUser = useAuthStore((s) => s.user);
   const isAdmin = currentUser?.role === 'ADMIN';
 
-  const { data: stores, isLoading, error } = useStores();
   const deleteStore = useDeleteStore();
 
   // Filters default to empty (show all). After creating a store we arrive with
@@ -226,44 +225,32 @@ export function StoresPage() {
   const [selectedZoneId, setSelectedZoneId] = useState(navState?.zoneId ?? '');
   const [selectedCityId, setSelectedCityId] = useState(navState?.cityId ?? '');
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
+  const [page, setPage] = useState(1);
+  // Reset to page 1 whenever any filter/search changes.
+  useEffect(() => setPage(1), [debouncedSearch, selectedZoneId, selectedCityId]);
   const [editing, setEditing] = useState<StoreWithLocation | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<StoreWithLocation | null>(null);
 
   const goToAddStore = () => navigate(isAdmin ? '/admin/stores/new' : '/stores/new');
 
-  // Filter options derived from the stores the user actually has.
-  const zoneOptions = useMemo(() => {
-    const m = new Map<string, string>();
-    stores?.forEach((s) => { if (s.city?.zone) m.set(s.city.zone.id, s.city.zone.name); });
-    return [...m.entries()]
-      .map(([value, label]) => ({ value, label }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }, [stores]);
-
-  const cityOptions = useMemo(() => {
-    const m = new Map<string, { name: string; zoneId: string }>();
-    stores?.forEach((s) => {
-      if (s.city) m.set(s.city.id, { name: s.city.name, zoneId: s.city.zoneId });
-    });
-    return [...m.entries()]
-      .filter(([, v]) => !selectedZoneId || v.zoneId === selectedZoneId)
-      .map(([value, v]) => ({ value, label: v.name }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }, [stores, selectedZoneId]);
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return (stores ?? []).filter((s) => {
-      if (selectedZoneId && s.city?.zone?.id !== selectedZoneId) return false;
-      if (selectedCityId && s.cityId !== selectedCityId) return false;
-      if (q && !(s.name.toLowerCase().includes(q) || s.storeCode.toLowerCase().includes(q))) return false;
-      return true;
-    });
-  }, [stores, selectedZoneId, selectedCityId, search]);
-
-  const { page, setPage, totalPages, pageItems } = usePagination(filtered ?? [], {
-    resetKey: `${selectedZoneId}|${selectedCityId}|${search}`,
+  // Server-paginated + server-filtered store list.
+  const { data, isLoading, error } = useStoresPage({
+    page,
+    limit: 10,
+    search: debouncedSearch,
+    zoneId: selectedZoneId || undefined,
+    cityId: selectedCityId || undefined,
   });
+  const pageItems = data?.items ?? [];
+  const totalPages = data?.meta.totalPages ?? 1;
+  const total = data?.meta.total ?? 0;
+
+  // Filter dropdowns come from dedicated endpoints, not derived from the list.
+  const { data: zones } = useZones();
+  const { data: cities } = useCities(selectedZoneId);
+  const zoneOptions = useMemo(() => (zones ?? []).map((z) => ({ value: z.id, label: z.name })), [zones]);
+  const cityOptions = useMemo(() => (cities ?? []).map((c) => ({ value: c.id, label: c.name })), [cities]);
 
   const hasFilters = !!selectedZoneId || !!selectedCityId || !!search;
   const clearFilters = () => { setSelectedZoneId(''); setSelectedCityId(''); setSearch(''); };
@@ -277,9 +264,9 @@ export function StoresPage() {
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Stores</h1>
           <p className="text-slate-500 mt-1">
             All your stores
-            {stores && stores.length > 0 && (
+            {data && (
               <span className="text-slate-400">
-                {' '}&middot; {hasFilters ? `${filtered.length} of ${stores.length}` : `${stores.length} total`}
+                {' '}&middot; {total} {total === 1 ? 'store' : 'stores'}{hasFilters ? ' matching' : ''}
               </span>
             )}
           </p>
@@ -333,7 +320,7 @@ export function StoresPage() {
         </Card>
       )}
 
-      {!isLoading && !error && stores && stores.length === 0 && (
+      {!isLoading && !error && !hasFilters && pageItems.length === 0 && (
         <Card>
           <EmptyState
             icon={StoreIcon}
@@ -344,7 +331,7 @@ export function StoresPage() {
         </Card>
       )}
 
-      {stores && stores.length > 0 && filtered.length > 0 && (
+      {pageItems.length > 0 && (
         <Card padding="none">
           <div className="overflow-x-auto">
             <table className="w-full text-sm whitespace-nowrap">
@@ -417,7 +404,7 @@ export function StoresPage() {
         </Card>
       )}
 
-      {stores && stores.length > 0 && filtered.length === 0 && (
+      {!isLoading && hasFilters && pageItems.length === 0 && (
         <Card>
           <EmptyState
             icon={StoreIcon}

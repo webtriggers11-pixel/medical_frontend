@@ -1,10 +1,17 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { queryKeys } from '../../../api/queryKeys';
 import { labService } from '../../../services/lab.service';
 import type { CreateLabInput, UpdateLabInput, CreateBundledTestInput, UpdateBundledTestInput } from '../../../types/lab.types';
 
 export const useLabs = () =>
   useQuery({ queryKey: queryKeys.labs.all, queryFn: labService.getAll });
+
+export const useLabsPage = (params: { page: number; limit: number; search?: string }) =>
+  useQuery({
+    queryKey: ['labs', 'page', params],
+    queryFn: () => labService.getPage(params),
+    placeholderData: keepPreviousData,
+  });
 
 export const useCreateLab = () => {
   const qc = useQueryClient();

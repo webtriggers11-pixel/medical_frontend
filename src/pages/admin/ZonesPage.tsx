@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useZones, useCreateZone, useUpdateZone, useDeleteZone } from '../../features/org/hooks/useOrg';
+import { useZonesPage, useCreateZone, useUpdateZone, useDeleteZone } from '../../features/org/hooks/useOrg';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -11,7 +11,7 @@ import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Pagination } from '../../components/ui/Pagination';
-import { usePagination } from '../../hooks/usePagination';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { getApiErrorMessage } from '../../lib/apiError';
 import type { Zone } from '../../types/org.types';
 
@@ -80,20 +80,20 @@ function ZoneModal({
 
 export function ZonesPage() {
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
+  const [page, setPage] = useState(1);
+  // Jump back to page 1 whenever the (debounced) search term changes.
+  useEffect(() => setPage(1), [debouncedSearch]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Zone | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Zone | null>(null);
 
-  const { data: zones, isLoading, error } = useZones();
+  const { data, isLoading, error } = useZonesPage({ page, limit: 10, search: debouncedSearch });
+  const pageItems = data?.items ?? [];
+  const totalPages = data?.meta.totalPages ?? 1;
+  const total = data?.meta.total ?? 0;
+
   const deleteZone = useDeleteZone();
-
-  const filtered = zones?.filter((z) =>
-    z.name.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const { page, setPage, totalPages, pageItems } = usePagination(filtered ?? [], {
-    resetKey: `${search}`,
-  });
 
   const handleEdit = (z: Zone) => { setEditing(z); setModalOpen(true); };
   const handleClose = () => { setEditing(null); setModalOpen(false); };
@@ -105,7 +105,7 @@ export function ZonesPage() {
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Zones</h1>
           <p className="text-slate-500 mt-1">
             Geographic zone master list
-            {zones && <span className="text-slate-400"> &middot; {zones.length} total</span>}
+            {data && <span className="text-slate-400"> &middot; {total} total</span>}
           </p>
         </div>
         <Button icon={PlusIcon} onClick={() => setModalOpen(true)}>Add zone</Button>
@@ -129,7 +129,7 @@ export function ZonesPage() {
         </Card>
       )}
 
-      {filtered && filtered.length > 0 && (
+      {pageItems.length > 0 && (
         <Card padding="none">
           <div className="overflow-x-auto">
             <table className="w-full text-sm whitespace-nowrap">
@@ -172,7 +172,7 @@ export function ZonesPage() {
         </Card>
       )}
 
-      {filtered?.length === 0 && !isLoading && (
+      {!isLoading && pageItems.length === 0 && (
         <Card>
           <EmptyState
             icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" /></svg>}
