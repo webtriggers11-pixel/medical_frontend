@@ -67,3 +67,25 @@ export interface BulkUploadResult {
   skipped: number;
   errors: { row: number; mobile: string; reason: string }[];
 }
+
+// Admin candidate edit. Store/client are immutable, so they're not editable
+// here. All fields optional — only what changed needs to be sent.
+export interface UpdateCandidateInput {
+  name?: string;
+  employeeCode?: string;
+  mobile?: string;
+  gender?: Gender;
+  age?: number;
+  candidateType?: CandidateType;
+  doj?: string; // ISO date (YYYY-MM-DD)
+  appointmentDate?: string; // ISO date (YYYY-MM-DD)
+  pincode?: string;
+  email?: string;
+  panNumber?: string;
+}
+
+export interface BulkDeleteResult {
+  deleted: number;
+  // Ids that were skipped (out of scope or already deleted).
+  skipped: string[];
+}
