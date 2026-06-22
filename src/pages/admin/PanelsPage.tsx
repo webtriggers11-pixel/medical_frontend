@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
-import { usePanelsPage } from '../../features/panel/hooks/usePanels';
+import { usePanelsPage, useDeletePanel } from '../../features/panel/hooks/usePanels';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Pagination } from '../../components/ui/Pagination';
 import { BusyOverlay } from '../../components/ui/BusyOverlay';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import type { Panel } from '../../types/panel.types';
 
 const fmt = (n: number) => `₹${Number(n).toLocaleString('en-IN')}`;
 
@@ -21,6 +24,16 @@ export function PanelsPage() {
   const pageItems = data?.items ?? [];
   const totalPages = data?.meta.totalPages ?? 1;
   const total = data?.meta.total ?? 0;
+
+  const deletePanel = useDeletePanel();
+  const [deleteTarget, setDeleteTarget] = useState<Panel | null>(null);
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deletePanel.mutateAsync(deleteTarget.id);
+      setDeleteTarget(null);
+    } catch { /* surfaced via mutation error toast */ }
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -68,6 +81,7 @@ export function PanelsPage() {
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Client pricing</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Status</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Created</th>
+                  <th className="text-right px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -173,6 +187,18 @@ export function PanelsPage() {
                     <td className="px-5 py-4 text-slate-500 text-xs whitespace-nowrap">
                       {new Date(p.createdAt).toLocaleDateString('en-IN')}
                     </td>
+                    {/* Actions */}
+                    <td className="px-5 py-4 text-right whitespace-nowrap">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                        onClick={() => setDeleteTarget(p)}
+                        aria-label={`Delete ${p.name}`}
+                      >
+                        Delete
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -196,6 +222,21 @@ export function PanelsPage() {
           />
         </Card>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        loading={deletePanel.isPending}
+        title="Delete panel?"
+        confirmLabel="Delete"
+        message={
+          <>
+            This will remove <span className="font-semibold text-slate-800">{deleteTarget?.name}</span> from the panel
+            catalog. Existing bookings keep their panel, but it can no longer be selected for new bookings.
+          </>
+        }
+      />
     </div>
   );
 }
