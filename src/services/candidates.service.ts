@@ -4,7 +4,9 @@ import type {
   Candidate,
   CandidateTypeCounts,
   CreateCandidateInput,
+  UpdateCandidateInput,
   BulkUploadResult,
+  BulkDeleteResult,
 } from '../types/candidate.types';
 import type { Paginated } from '../types/pagination.types';
 
@@ -80,6 +82,25 @@ export const candidatesService = {
 
   setApproval: async (id: string, isApproved: boolean): Promise<Candidate> => {
     const res = await api.patch<ApiResponse<Candidate>>(`/candidates/${id}/approve`, { isApproved });
+    return res.data.data;
+  },
+
+  // Admin-only: edit a candidate's details.
+  update: async (id: string, input: UpdateCandidateInput): Promise<Candidate> => {
+    const res = await api.patch<ApiResponse<Candidate>>(`/candidates/${id}`, input);
+    return res.data.data;
+  },
+
+  // Soft-delete a single candidate (cascades to its bookings & reports).
+  remove: async (id: string): Promise<{ id: string }> => {
+    const res = await api.delete<ApiResponse<{ id: string }>>(`/candidates/${id}`);
+    return res.data.data;
+  },
+
+  // Soft-delete many candidates. Returns how many were deleted and which ids
+  // were skipped (out of scope / already deleted).
+  bulkRemove: async (ids: string[]): Promise<BulkDeleteResult> => {
+    const res = await api.post<ApiResponse<BulkDeleteResult>>('/candidates/bulk-delete', { ids });
     return res.data.data;
   },
 

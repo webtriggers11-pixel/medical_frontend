@@ -1,7 +1,8 @@
 import { useEffect, useState, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCandidatesPage, useCandidateTypeCounts } from '../../features/candidates/hooks/useCandidates';
+import { useCandidatesPage, useCandidateTypeCounts, useDeleteCandidate, useBulkDeleteCandidates } from '../../features/candidates/hooks/useCandidates';
 import { BulkUploadModal } from '../../features/candidates/components/BulkUploadModal';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { RescheduleModal } from '../../features/booking/components/RescheduleModal';
 import { candidatesService } from '../../services/candidates.service';
 import { Card } from '../../components/ui/Card';
@@ -15,7 +16,7 @@ import { Pagination } from '../../components/ui/Pagination';
 import { BusyOverlay } from '../../components/ui/BusyOverlay';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { format } from 'date-fns';
-import type { CandidateType } from '../../types/candidate.types';
+import type { Candidate, CandidateType } from '../../types/candidate.types';
 import { bookingStatusLabel, bookingStatusVariant, isSchedulePassed } from '../../types/booking.types';
 import type { Booking } from '../../types/booking.types';
 
@@ -96,6 +97,48 @@ export function CandidatesPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [rescheduleTarget, setRescheduleTarget] = useState<{ booking: Booking; candidateName: string } | null>(null);
 
+  /* ── delete / bulk-delete (client may delete, not edit) ── */
+  const [deleteTarget, setDeleteTarget] = useState<Candidate | null>(null);
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const deleteCandidate = useDeleteCandidate();
+  const bulkDeleteCandidates = useBulkDeleteCandidates();
+
+  // Selection refers only to the visible page/filter — reset when it changes.
+  useEffect(() => { setSelectedIds(new Set()); }, [debouncedSearch, typeFilter, page]);
+
+  const toggleOne = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  const pageIds = pageItems.map((c) => c.id);
+  const allOnPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
+  const toggleAllOnPage = () =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allOnPageSelected) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteCandidate.mutateAsync(deleteTarget.id);
+      setSelectedIds((prev) => { const next = new Set(prev); next.delete(deleteTarget.id); return next; });
+      setDeleteTarget(null);
+    } catch { /* surfaced via mutation error toast */ }
+  };
+  const handleConfirmBulkDelete = async () => {
+    try {
+      await bulkDeleteCandidates.mutateAsync([...selectedIds]);
+      setSelectedIds(new Set());
+      setBulkConfirmOpen(false);
+    } catch { /* surfaced via mutation error toast */ }
+  };
+
   const handleDownloadTemplate = async () => {
     setDownloading(true);
     try { await candidatesService.downloadTemplate(); }
@@ -155,6 +198,17 @@ export function CandidatesPage() {
         </div>
       </div>
 
+      {/* Bulk-action bar — shown when one or more rows are selected. */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-primary-200 bg-primary-50/70 px-4 py-2.5 animate-fade-in">
+          <p className="text-sm font-medium text-primary-700">{selectedIds.size} selected</p>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>Clear</Button>
+            <Button size="sm" variant="danger" onClick={() => setBulkConfirmOpen(true)}>Delete selected</Button>
+          </div>
+        </div>
+      )}
+
       {isLoading && <SkeletonTable rows={5} />}
 
       {error && (
@@ -171,6 +225,15 @@ export function CandidatesPage() {
             <table className="w-full text-sm whitespace-nowrap">
               <thead>
                 <tr className="border-b border-border">
+                  <th className="px-5 py-3.5 w-10">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 cursor-pointer rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                      checked={allOnPageSelected}
+                      onChange={toggleAllOnPage}
+                      aria-label="Select all on page"
+                    />
+                  </th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">ID</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Candidate</th>
                   <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Emp. Code</th>
@@ -189,7 +252,16 @@ export function CandidatesPage() {
                   const isExpanded = expandedId === c.id;
                   return (
                     <Fragment key={c.id}>
-                      <tr className={`group transition-colors ${isExpanded ? 'bg-primary-50/60' : 'hover:bg-slate-50/70'}`}>
+                      <tr className={`group transition-colors ${selectedIds.has(c.id) ? 'bg-primary-50/60' : isExpanded ? 'bg-primary-50/60' : 'hover:bg-slate-50/70'}`}>
+                        <td className="px-5 py-3.5">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 cursor-pointer rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                            checked={selectedIds.has(c.id)}
+                            onChange={() => toggleOne(c.id)}
+                            aria-label={`Select ${c.name}`}
+                          />
+                        </td>
                         <td className="px-5 py-3.5">
                           <span className="text-xs font-mono font-semibold text-slate-400">{c.candidateId ?? '—'}</span>
                         </td>
@@ -236,38 +308,49 @@ export function CandidatesPage() {
                           )}
                         </td>
                         <td className="px-5 py-3.5">
-                          {booking ? (
-                            <div className="flex items-center justify-end gap-2">
-                              {isSchedulePassed(booking) && (
+                          <div className="flex items-center justify-end gap-2">
+                            {booking ? (
+                              <>
+                                {isSchedulePassed(booking) && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setRescheduleTarget({ booking, candidateName: c.name })}
+                                  >
+                                    Reschedule
+                                  </Button>
+                                )}
                                 <Button
                                   size="sm"
-                                  variant="outline"
-                                  onClick={() => setRescheduleTarget({ booking, candidateName: c.name })}
+                                  variant={isExpanded ? 'secondary' : 'ghost'}
+                                  onClick={() => setExpandedId(isExpanded ? null : c.id)}
+                                  iconRight={
+                                    <svg className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                    </svg>
+                                  }
                                 >
-                                  Reschedule
+                                  {isExpanded ? 'Hide details' : 'View details'}
                                 </Button>
-                              )}
-                              <Button
-                                size="sm"
-                                variant={isExpanded ? 'secondary' : 'ghost'}
-                                onClick={() => setExpandedId(isExpanded ? null : c.id)}
-                                iconRight={
-                                  <svg className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                  </svg>
-                                }
-                              >
-                                {isExpanded ? 'Hide details' : 'View details'}
-                              </Button>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-amber-600 font-medium">Awaiting admin</span>
-                          )}
+                              </>
+                            ) : (
+                              <span className="text-xs text-amber-600 font-medium">Awaiting admin</span>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                              onClick={() => setDeleteTarget(c)}
+                              aria-label={`Delete ${c.name}`}
+                            >
+                              Delete
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                       {isExpanded && booking && (
                         <tr className="bg-primary-50/60">
-                          <td colSpan={10} className="p-0">
+                          <td colSpan={11} className="p-0">
                             <div className="mx-4 mb-4 overflow-hidden rounded-xl border border-primary-200 bg-white shadow-md ring-1 ring-primary-100 animate-fade-in">
                               {/* accent header bar */}
                               <div className="flex items-center gap-2 border-b border-primary-200 bg-gradient-to-r from-primary-100/80 to-primary-50 px-5 py-2.5">
@@ -376,6 +459,36 @@ export function CandidatesPage() {
           candidateName={rescheduleTarget.candidateName}
         />
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        loading={deleteCandidate.isPending}
+        title="Delete candidate?"
+        confirmLabel="Delete"
+        message={
+          <>
+            This will remove <span className="font-semibold text-slate-800">{deleteTarget?.name}</span> and any of their
+            bookings and reports from your account. This can't be undone from here.
+          </>
+        }
+      />
+
+      <ConfirmDialog
+        open={bulkConfirmOpen}
+        onClose={() => setBulkConfirmOpen(false)}
+        onConfirm={handleConfirmBulkDelete}
+        loading={bulkDeleteCandidates.isPending}
+        title={`Delete ${selectedIds.size} candidate${selectedIds.size === 1 ? '' : 's'}?`}
+        confirmLabel={`Delete ${selectedIds.size}`}
+        message={
+          <>
+            This will remove the selected {selectedIds.size === 1 ? 'candidate' : 'candidates'} and their bookings and
+            reports from your account. This can't be undone from here.
+          </>
+        }
+      />
     </div>
   );
 }

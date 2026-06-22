@@ -14,8 +14,10 @@ import { SkeletonTable } from '../../components/ui/Skeleton';
 import { Pagination } from '../../components/ui/Pagination';
 import { BusyOverlay } from '../../components/ui/BusyOverlay';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
-import { useCandidatesPage, useSetCandidateApproval } from '../../features/candidates/hooks/useCandidates';
+import { useCandidatesPage, useSetCandidateApproval, useDeleteCandidate, useBulkDeleteCandidates } from '../../features/candidates/hooks/useCandidates';
 import { Switch } from '../../components/ui/Switch';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { EditCandidateModal } from '../../features/candidates/components/EditCandidateModal';
 import { RescheduleModal } from '../../features/booking/components/RescheduleModal';
 import { UploadReportModal } from '../../features/reports/components/UploadReportModal';
 import { ReportManagerModal } from '../../features/reports/components/ReportManagerModal';
@@ -27,6 +29,7 @@ import { downloadReportFiles } from '../../features/reports/lib/fileDownload';
 import type { Booking } from '../../types/booking.types';
 import { bookingStatusLabel, bookingStatusVariant, isRescheduled } from '../../types/booking.types';
 import type { Report } from '../../types/report.types';
+import type { Candidate } from '../../types/candidate.types';
 import type { ClientStats } from '../../types/stats.types';
 
 /* ── client (USER) dashboard ──────────────────────────────────────────── */
@@ -418,6 +421,50 @@ function AdminDashboard({ firstName }: { firstName: string }) {
   const [reportTarget, setReportTarget] = useState<{ report: Report; candidateName: string; tests: string[] } | null>(null);
   const [rescheduleTarget, setRescheduleTarget] = useState<{ booking: Booking; candidateName: string } | null>(null);
 
+  /* ── edit / delete / bulk-delete ── */
+  const [editTarget, setEditTarget] = useState<Candidate | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Candidate | null>(null);
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const deleteCandidate = useDeleteCandidate();
+  const bulkDeleteCandidates = useBulkDeleteCandidates();
+
+  // Selection only ever refers to rows on the current page/filter; clear it
+  // whenever the underlying result set changes so stale ids never linger.
+  useEffect(() => { setSelectedIds(new Set()); }, [filterKey, page]);
+
+  const toggleOne = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  const pageIds = pageItems.map((c) => c.id);
+  const allOnPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
+  const toggleAllOnPage = () =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allOnPageSelected) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteCandidate.mutateAsync(deleteTarget.id);
+      setSelectedIds((prev) => { const next = new Set(prev); next.delete(deleteTarget.id); return next; });
+      setDeleteTarget(null);
+    } catch { /* surfaced via mutation error toast */ }
+  };
+  const handleConfirmBulkDelete = async () => {
+    try {
+      await bulkDeleteCandidates.mutateAsync([...selectedIds]);
+      setSelectedIds(new Set());
+      setBulkConfirmOpen(false);
+    } catch { /* surfaced via mutation error toast */ }
+  };
+
   const th = 'text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap';
 
   /* ── label lookup helpers ── */
@@ -565,6 +612,21 @@ function AdminDashboard({ firstName }: { firstName: string }) {
           />
         </div>
 
+        {/* Bulk-action bar — appears once one or more rows are selected. */}
+        {selectedIds.size > 0 && (
+          <div className="flex items-center justify-between gap-3 px-6 py-3 bg-primary-50/70 border-b border-primary-100 animate-fade-in">
+            <p className="text-sm font-medium text-primary-700">
+              {selectedIds.size} selected
+            </p>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>Clear</Button>
+              <Button size="sm" variant="danger" onClick={() => setBulkConfirmOpen(true)}>
+                Delete selected
+              </Button>
+            </div>
+          </div>
+        )}
+
         {isLoading && <SkeletonTable rows={8} />}
 
         {error && (
@@ -596,6 +658,15 @@ function AdminDashboard({ firstName }: { firstName: string }) {
               <table className="w-max min-w-full text-sm">
                 <thead className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-border">
                   <tr>
+                    <th className="px-4 py-3 w-10">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 cursor-pointer rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                        checked={allOnPageSelected}
+                        onChange={toggleAllOnPage}
+                        aria-label="Select all on page"
+                      />
+                    </th>
                     <th className={th}>ID</th>
                     <th className={th}>Candidate</th>
                     <th className={th}>Emp. Code</th>
@@ -615,6 +686,7 @@ function AdminDashboard({ firstName }: { firstName: string }) {
                     <th className={th}>Report</th>
                     <th className={th}>Approved</th>
                     <th className={th}>Active</th>
+                    <th className={`${th} text-right`}>Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -622,7 +694,18 @@ function AdminDashboard({ firstName }: { firstName: string }) {
                     const booking = c.bookings?.[0];
                     const isBooked = !!booking;
                     return (
-                      <tr key={c.id} className={`transition-colors group ${isBooked ? 'hover:bg-emerald-50/30' : 'hover:bg-primary-50/20'}`}>
+                      <tr key={c.id} className={`transition-colors group ${selectedIds.has(c.id) ? 'bg-primary-50/50' : isBooked ? 'hover:bg-emerald-50/30' : 'hover:bg-primary-50/20'}`}>
+
+                        {/* Row select */}
+                        <td className="px-4 py-3.5">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 cursor-pointer rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                            checked={selectedIds.has(c.id)}
+                            onChange={() => toggleOne(c.id)}
+                            aria-label={`Select ${c.name}`}
+                          />
+                        </td>
 
                         {/* Candidate ID */}
                         <td className="px-4 py-3.5 whitespace-nowrap">
@@ -811,6 +894,24 @@ function AdminDashboard({ firstName }: { firstName: string }) {
                             {c.isActive ? 'Active' : 'Inactive'}
                           </Badge>
                         </td>
+
+                        {/* Actions — edit + delete */}
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button size="sm" variant="ghost" onClick={() => setEditTarget(c)} aria-label={`Edit ${c.name}`}>
+                              Edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                              onClick={() => setDeleteTarget(c)}
+                              aria-label={`Delete ${c.name}`}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
@@ -856,6 +957,45 @@ function AdminDashboard({ firstName }: { firstName: string }) {
           tests={reportTarget.tests}
         />
       )}
+
+      {editTarget && (
+        <EditCandidateModal
+          key={editTarget.id}
+          open={!!editTarget}
+          onClose={() => setEditTarget(null)}
+          candidate={editTarget}
+        />
+      )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        loading={deleteCandidate.isPending}
+        title="Delete candidate?"
+        confirmLabel="Delete"
+        message={
+          <>
+            This will soft-delete <span className="font-semibold text-slate-800">{deleteTarget?.name}</span> along with any
+            of their bookings and reports. They'll be hidden everywhere but can be restored from the database if needed.
+          </>
+        }
+      />
+
+      <ConfirmDialog
+        open={bulkConfirmOpen}
+        onClose={() => setBulkConfirmOpen(false)}
+        onConfirm={handleConfirmBulkDelete}
+        loading={bulkDeleteCandidates.isPending}
+        title={`Delete ${selectedIds.size} candidate${selectedIds.size === 1 ? '' : 's'}?`}
+        confirmLabel={`Delete ${selectedIds.size}`}
+        message={
+          <>
+            This will soft-delete the selected {selectedIds.size === 1 ? 'candidate' : 'candidates'} together with their
+            bookings and reports. This is reversible only from the database.
+          </>
+        }
+      />
     </div>
   );
 }
