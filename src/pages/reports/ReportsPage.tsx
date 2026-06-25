@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { useCandidatesPage } from '../../features/candidates/hooks/useCandidates';
+import { useMyStores } from '../../features/candidates/hooks/useOrgCascade';
 import { downloadReportFiles as downloadFiles } from '../../features/reports/lib/fileDownload';
 import { ReportPreviewDrawer } from '../../features/reports/components/ReportPreviewDrawer';
 import { FITNESS_VARIANT } from '../../types/report.types';
@@ -10,6 +11,8 @@ import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { SearchInput } from '../../components/ui/SearchInput';
+import { Combobox } from '../../components/ui/Combobox';
+import { DateRangePicker, type DateRange } from '../../components/ui/DateRangePicker';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Pagination } from '../../components/ui/Pagination';
@@ -33,28 +36,58 @@ const FileIcon = (
   </svg>
 );
 
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary-50 border border-primary-200 text-xs font-medium text-primary-700">
+      {label}
+      <button onClick={onRemove} className="hover:text-primary-900 transition-colors leading-none ml-0.5">
+        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </span>
+  );
+}
+
 export function ReportsPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
+  // Server-side filters (applied via useCandidatesPage). Empty = unset.
+  const [fStore, setFStore] = useState('');
+  const [fUploadRange, setFUploadRange] = useState<DateRange | undefined>(undefined);
   const [page, setPage] = useState(1);
-  // Reset to page 1 when the search changes.
-  useEffect(() => setPage(1), [debouncedSearch]);
+  // Reset to page 1 whenever any filter changes.
+  useEffect(() => setPage(1), [debouncedSearch, fStore, fUploadRange]);
+
+  const { data: stores } = useMyStores();
+  const storeOpts = [
+    { value: '', label: 'All stores' },
+    ...(stores ?? []).map((s) => ({ value: s.id, label: s.name })),
+  ];
 
   const { data, isLoading, isFetching } = useCandidatesPage({
     page,
     limit: 10,
     search: debouncedSearch,
+    storeId: fStore || undefined,
+    uploadFrom: fUploadRange?.from ? fUploadRange.from.toISOString() : undefined,
+    uploadTo: fUploadRange?.to ? fUploadRange.to.toISOString() : undefined,
     with: 'reports',
   });
   const pageItems = data?.items ?? [];
   const totalPages = data?.meta.totalPages ?? 1;
   const total = data?.meta.total ?? 0;
 
+  const hasFilter = !!search || !!fStore || !!fUploadRange?.from;
+  const clearAllFilters = () => {
+    setSearch('');
+    setFStore('');
+    setFUploadRange(undefined);
+  };
+
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [preview, setPreview] = useState<{ candidateName: string; files: ReportFile[]; index: number } | null>(null);
   // Selection is scoped to the current page; clear it when the page or search
   // changes so it never references off-page candidates.
-  useEffect(() => setSelected(new Set()), [page, debouncedSearch]);
+  useEffect(() => setSelected(new Set()), [page, debouncedSearch, fStore, fUploadRange]);
 
   const filesFor = (c: Candidate): ReportFile[] =>
     (c.reports ?? []).flatMap((r) => r.files ?? []);
@@ -89,6 +122,27 @@ export function ReportsPage() {
           className="w-full sm:w-72"
         />
       </div>
+
+      {/* Server-side filter bar */}
+      <Card>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Combobox options={storeOpts} value={fStore} onChange={setFStore} placeholder="All stores" label="Store" />
+          <DateRangePicker label="Uploaded date" value={fUploadRange} onChange={setFUploadRange} placeholder="All dates" />
+        </div>
+        {hasFilter && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+            {fStore && <FilterChip label={`Store: ${storeOpts.find((o) => o.value === fStore)?.label ?? fStore}`} onRemove={() => setFStore('')} />}
+            {fUploadRange?.from && (
+              <FilterChip
+                label={`Uploaded: ${fUploadRange.from.toLocaleDateString('en-IN')}${fUploadRange.to ? ` – ${fUploadRange.to.toLocaleDateString('en-IN')}` : ''}`}
+                onRemove={() => setFUploadRange(undefined)}
+              />
+            )}
+            {search && <FilterChip label={`Search: ${search}`} onRemove={() => setSearch('')} />}
+            <button onClick={clearAllFilters} className="ml-auto text-xs font-medium text-primary-600 hover:text-primary-700">Clear all</button>
+          </div>
+        )}
+      </Card>
 
       {/* contextual bulk-download bar — only when rows are selected */}
       {selectedFiles.length > 0 && (
@@ -212,8 +266,9 @@ export function ReportsPage() {
         <Card>
           <EmptyState
             icon={FileIcon}
-            title={search ? 'No candidates found' : 'No candidates yet'}
-            description={search ? `No results for "${search}"` : 'Once you add candidates and the admin uploads their reports, they will appear here.'}
+            title={hasFilter ? 'No matching candidates' : 'No candidates yet'}
+            description={hasFilter ? 'Try adjusting the filters or search term.' : 'Once you add candidates and the admin uploads their reports, they will appear here.'}
+            action={hasFilter ? <Button variant="secondary" size="sm" onClick={clearAllFilters}>Clear filters</Button> : undefined}
           />
         </Card>
       )}
