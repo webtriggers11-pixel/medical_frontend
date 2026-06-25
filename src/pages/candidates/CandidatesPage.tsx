@@ -1,6 +1,7 @@
 import { useEffect, useState, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCandidatesPage, useCandidateTypeCounts } from '../../features/candidates/hooks/useCandidates';
+import { useMyStores } from '../../features/candidates/hooks/useOrgCascade';
 import { BulkUploadModal } from '../../features/candidates/components/BulkUploadModal';
 import { RescheduleModal } from '../../features/booking/components/RescheduleModal';
 import { candidatesService } from '../../services/candidates.service';
@@ -9,6 +10,8 @@ import { Badge } from '../../components/ui/Badge';
 import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
 import { SearchInput } from '../../components/ui/SearchInput';
+import { Combobox } from '../../components/ui/Combobox';
+import { DateRangePicker, type DateRange } from '../../components/ui/DateRangePicker';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Pagination } from '../../components/ui/Pagination';
@@ -30,6 +33,34 @@ const typeLabel: Record<CandidateType, string> = {
   EXISTING: 'Existing',
   ANNUAL: 'Annual',
 };
+
+// Empty string = "no filter" (Combobox value convention shared with the admin
+// dashboard). Status uses the same server-side buckets as the admin view.
+const ALL = '';
+const STATUS_OPTIONS = [
+  { value: ALL, label: 'All statuses' },
+  { value: 'APPT_REQ', label: 'Appointment requested' },
+  { value: 'SCHEDULE', label: 'Scheduled' },
+  { value: 'REPORT_PENDING', label: 'Report pending' },
+  { value: 'DONE', label: 'Done' },
+];
+const TYPE_OPTIONS = [
+  { value: ALL, label: 'All types' },
+  { value: 'NEW_JOINER', label: 'New Joiner' },
+  { value: 'EXISTING', label: 'Existing' },
+  { value: 'ANNUAL', label: 'Annual' },
+];
+
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary-50 border border-primary-200 text-xs font-medium text-primary-700">
+      {label}
+      <button onClick={onRemove} className="hover:text-primary-900 transition-colors leading-none ml-0.5">
+        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </span>
+  );
+}
 
 const PlusIcon = (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -75,15 +106,35 @@ export function CandidatesPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('ALL');
+  // Server-side filters (all applied via useCandidatesPage). Empty string / undefined = unset.
+  const [fStore, setFStore] = useState('');
+  const [fStatus, setFStatus] = useState('');
+  const [fApptRange, setFApptRange] = useState<DateRange | undefined>(undefined);
+  const [fSchedRange, setFSchedRange] = useState<DateRange | undefined>(undefined);
   const [page, setPage] = useState(1);
-  // Reset to page 1 whenever the search term or type filter changes.
-  useEffect(() => setPage(1), [debouncedSearch, typeFilter]);
+  // Reset to page 1 whenever any filter changes.
+  useEffect(
+    () => setPage(1),
+    [debouncedSearch, typeFilter, fStore, fStatus, fApptRange, fSchedRange],
+  );
+
+  const { data: stores } = useMyStores();
+  const storeOpts = [
+    { value: ALL, label: 'All stores' },
+    ...(stores ?? []).map((s) => ({ value: s.id, label: s.name })),
+  ];
 
   const { data, isLoading, isFetching, error } = useCandidatesPage({
     page,
     limit: 10,
     search: debouncedSearch,
     type: typeFilter === 'ALL' ? undefined : typeFilter,
+    storeId: fStore || undefined,
+    status: fStatus || undefined,
+    from: fApptRange?.from ? fApptRange.from.toISOString() : undefined,
+    to: fApptRange?.to ? fApptRange.to.toISOString() : undefined,
+    schedFrom: fSchedRange?.from ? fSchedRange.from.toISOString() : undefined,
+    schedTo: fSchedRange?.to ? fSchedRange.to.toISOString() : undefined,
     with: 'booking',
   });
   const { data: counts } = useCandidateTypeCounts();
@@ -102,7 +153,21 @@ export function CandidatesPage() {
     finally { setDownloading(false); }
   };
 
-  const hasFilter = !!search || typeFilter !== 'ALL';
+  const hasFilter =
+    !!search ||
+    typeFilter !== 'ALL' ||
+    !!fStore ||
+    !!fStatus ||
+    !!fApptRange?.from ||
+    !!fSchedRange?.from;
+  const clearAllFilters = () => {
+    setSearch('');
+    setTypeFilter('ALL');
+    setFStore('');
+    setFStatus('');
+    setFApptRange(undefined);
+    setFSchedRange(undefined);
+  };
   const isEmpty = !!counts && counts.ALL === 0;
 
   return (
@@ -151,9 +216,47 @@ export function CandidatesPage() {
         <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} onClear={() => setSearch('')} placeholder="Search candidates..." className="w-full sm:w-80" />
         <div className="flex items-center gap-3 text-sm text-slate-500">
           {data && <span>{total} {total === 1 ? 'candidate' : 'candidates'}{typeFilter !== 'ALL' && <> · {typeLabel[typeFilter]}</>}</span>}
-          {hasFilter && <button onClick={() => { setSearch(''); setTypeFilter('ALL'); }} className="font-medium text-primary-600 hover:text-primary-700">Clear</button>}
+          {hasFilter && <button onClick={clearAllFilters} className="font-medium text-primary-600 hover:text-primary-700">Clear</button>}
         </div>
       </div>
+
+      {/* Server-side filter bar */}
+      <Card>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <Combobox options={storeOpts} value={fStore} onChange={setFStore} placeholder="All stores" label="Store" />
+          <Combobox
+            options={TYPE_OPTIONS}
+            value={typeFilter === 'ALL' ? '' : typeFilter}
+            onChange={(v) => setTypeFilter(v ? (v as CandidateType) : 'ALL')}
+            placeholder="All types"
+            label="Type"
+          />
+          <Combobox options={STATUS_OPTIONS} value={fStatus} onChange={setFStatus} placeholder="All statuses" label="Status" />
+          <DateRangePicker label="Appointment date" value={fApptRange} onChange={setFApptRange} placeholder="All dates" />
+          <DateRangePicker label="Schedule date" value={fSchedRange} onChange={setFSchedRange} placeholder="All dates" />
+        </div>
+        {hasFilter && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+            {fStore && <FilterChip label={`Store: ${storeOpts.find((o) => o.value === fStore)?.label ?? fStore}`} onRemove={() => setFStore('')} />}
+            {typeFilter !== 'ALL' && <FilterChip label={`Type: ${typeLabel[typeFilter]}`} onRemove={() => setTypeFilter('ALL')} />}
+            {fStatus && <FilterChip label={`Status: ${STATUS_OPTIONS.find((o) => o.value === fStatus)?.label}`} onRemove={() => setFStatus('')} />}
+            {fApptRange?.from && (
+              <FilterChip
+                label={`Appt: ${fApptRange.from.toLocaleDateString('en-IN')}${fApptRange.to ? ` – ${fApptRange.to.toLocaleDateString('en-IN')}` : ''}`}
+                onRemove={() => setFApptRange(undefined)}
+              />
+            )}
+            {fSchedRange?.from && (
+              <FilterChip
+                label={`Schedule: ${fSchedRange.from.toLocaleDateString('en-IN')}${fSchedRange.to ? ` – ${fSchedRange.to.toLocaleDateString('en-IN')}` : ''}`}
+                onRemove={() => setFSchedRange(undefined)}
+              />
+            )}
+            {search && <FilterChip label={`Search: ${search}`} onRemove={() => setSearch('')} />}
+            <button onClick={clearAllFilters} className="ml-auto text-xs font-medium text-primary-600 hover:text-primary-700">Clear all</button>
+          </div>
+        )}
+      </Card>
 
       {isLoading && <SkeletonTable rows={5} />}
 
@@ -350,7 +453,7 @@ export function CandidatesPage() {
             icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>}
             title="No matching candidates"
             description="Try a different search term or candidate type."
-            action={<Button variant="secondary" size="sm" onClick={() => { setSearch(''); setTypeFilter('ALL'); }}>Clear filters</Button>}
+            action={<Button variant="secondary" size="sm" onClick={clearAllFilters}>Clear filters</Button>}
           />
         </Card>
       )}

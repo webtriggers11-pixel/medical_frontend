@@ -21,3 +21,12 @@ export const useStores = (cityId: string | undefined) =>
     queryFn: () => orgService.listStores(cityId as string),
     enabled: !!cityId,
   });
+
+// The caller's own stores (USER) for filter dropdowns. `GET /stores` is
+// client-scoped server-side, so no cityId is needed — passing none returns the
+// full flat list of the logged-in client's stores.
+export const useMyStores = () =>
+  useQuery({
+    queryKey: queryKeys.org.storesAll,
+    queryFn: () => orgService.listStores(),
+  });

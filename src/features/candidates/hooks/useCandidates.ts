@@ -34,6 +34,10 @@ export const useCandidatesPage = (params: {
   status?: string;
   from?: string;
   to?: string;
+  schedFrom?: string;
+  schedTo?: string;
+  uploadFrom?: string;
+  uploadTo?: string;
   with?: string;
 }) =>
   useQuery({

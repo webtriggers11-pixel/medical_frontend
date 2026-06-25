@@ -45,6 +45,10 @@ export const candidatesService = {
     status?: string;
     from?: string;
     to?: string;
+    schedFrom?: string;
+    schedTo?: string;
+    uploadFrom?: string;
+    uploadTo?: string;
     with?: string;
   }): Promise<Paginated<Candidate>> => {
     const res = await api.get<ApiResponse<Paginated<Candidate>>>('/candidates', {
@@ -62,6 +66,10 @@ export const candidatesService = {
         status: params.status || undefined,
         from: params.from || undefined,
         to: params.to || undefined,
+        schedFrom: params.schedFrom || undefined,
+        schedTo: params.schedTo || undefined,
+        uploadFrom: params.uploadFrom || undefined,
+        uploadTo: params.uploadTo || undefined,
         with: params.with || undefined,
       },
     });
