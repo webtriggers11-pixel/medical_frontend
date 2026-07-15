@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 import { useCandidatesPage } from '../../features/candidates/hooks/useCandidates';
 import { useMyStores } from '../../features/candidates/hooks/useOrgCascade';
 import { downloadReportFiles as downloadFiles } from '../../features/reports/lib/fileDownload';
+import { reportService } from '../../services/report.service';
 import { ReportPreviewDrawer } from '../../features/reports/components/ReportPreviewDrawer';
 import { FITNESS_VARIANT } from '../../types/report.types';
 import type { ReportFile } from '../../types/report.types';
 import type { Candidate } from '../../types/candidate.types';
+import type { Booking } from '../../types/booking.types';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -36,6 +39,33 @@ const FileIcon = (
   </svg>
 );
 
+// Store-status filter → candidate `storeStatus` param (Store.status enum).
+const STORE_STATUS_OPTIONS = [
+  { value: '', label: 'All stores' },
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'INACTIVE', label: 'Inactive' },
+];
+// Schedule-status filter → candidate `status` bucket. "Schedule" = booking
+// scheduled but not yet done; "Done" = report uploaded / fitness decided.
+const SCHEDULE_STATUS_OPTIONS = [
+  { value: '', label: 'All' },
+  { value: 'SCHEDULE', label: 'Schedule' },
+  { value: 'DONE', label: 'Done' },
+];
+
+// Derive the Schedule/Done bucket for the table column from the latest booking,
+// mirroring the server-side buckets: SCHEDULED → Schedule; a completed report
+// (uploaded / fit / unfit) → Done. Other states (requested / visited) show —.
+function scheduleStatusInfo(
+  booking?: Booking,
+): { label: string; variant: 'warning' | 'success' } | null {
+  if (!booking) return null;
+  if (booking.status === 'SCHEDULED') return { label: 'Schedule', variant: 'warning' };
+  if (booking.status === 'REPORT_UPLOADED' || booking.status === 'FIT' || booking.status === 'UNFIT')
+    return { label: 'Done', variant: 'success' };
+  return null;
+}
+
 function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary-50 border border-primary-200 text-xs font-medium text-primary-700">
@@ -52,10 +82,12 @@ export function ReportsPage() {
   const debouncedSearch = useDebouncedValue(search, 300);
   // Server-side filters (applied via useCandidatesPage). Empty = unset.
   const [fStore, setFStore] = useState('');
+  const [fStoreStatus, setFStoreStatus] = useState('');
+  const [fSchedule, setFSchedule] = useState('');
   const [fUploadRange, setFUploadRange] = useState<DateRange | undefined>(undefined);
   const [page, setPage] = useState(1);
   // Reset to page 1 whenever any filter changes.
-  useEffect(() => setPage(1), [debouncedSearch, fStore, fUploadRange]);
+  useEffect(() => setPage(1), [debouncedSearch, fStore, fStoreStatus, fSchedule, fUploadRange]);
 
   const { data: stores } = useMyStores();
   const storeOpts = [
@@ -63,31 +95,44 @@ export function ReportsPage() {
     ...(stores ?? []).map((s) => ({ value: s.id, label: s.name })),
   ];
 
+  // The filter set shared by the query and the "download all filtered" ZIP so
+  // the ZIP always mirrors exactly what the client is looking at.
+  const uploadFrom = fUploadRange?.from ? fUploadRange.from.toISOString() : undefined;
+  const uploadTo = fUploadRange?.to ? fUploadRange.to.toISOString() : undefined;
+  const serverFilters = {
+    search: debouncedSearch || undefined,
+    storeId: fStore || undefined,
+    storeStatus: fStoreStatus || undefined,
+    status: fSchedule || undefined,
+    uploadFrom,
+    uploadTo,
+  };
+
   const { data, isLoading, isFetching } = useCandidatesPage({
     page,
     limit: 10,
-    search: debouncedSearch,
-    storeId: fStore || undefined,
-    uploadFrom: fUploadRange?.from ? fUploadRange.from.toISOString() : undefined,
-    uploadTo: fUploadRange?.to ? fUploadRange.to.toISOString() : undefined,
-    with: 'reports',
+    ...serverFilters,
+    with: 'reports,booking',
   });
   const pageItems = data?.items ?? [];
   const totalPages = data?.meta.totalPages ?? 1;
   const total = data?.meta.total ?? 0;
 
-  const hasFilter = !!search || !!fStore || !!fUploadRange?.from;
+  const hasFilter = !!search || !!fStore || !!fStoreStatus || !!fSchedule || !!fUploadRange?.from;
   const clearAllFilters = () => {
     setSearch('');
     setFStore('');
+    setFStoreStatus('');
+    setFSchedule('');
     setFUploadRange(undefined);
   };
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [preview, setPreview] = useState<{ candidateName: string; files: ReportFile[]; index: number } | null>(null);
-  // Selection is scoped to the current page; clear it when the page or search
-  // changes so it never references off-page candidates.
-  useEffect(() => setSelected(new Set()), [page, debouncedSearch, fStore, fUploadRange]);
+  const [zipping, setZipping] = useState<'selected' | 'all' | null>(null);
+  // Selection is scoped to the current page; clear it when the page or filters
+  // change so it never references off-page candidates.
+  useEffect(() => setSelected(new Set()), [page, debouncedSearch, fStore, fStoreStatus, fSchedule, fUploadRange]);
 
   const filesFor = (c: Candidate): ReportFile[] =>
     (c.reports ?? []).flatMap((r) => r.files ?? []);
@@ -102,6 +147,25 @@ export function ReportsPage() {
   const selectedFiles = pageItems
     .filter((c) => selected.has(c.id))
     .flatMap((c) => filesFor(c));
+
+  // Bulk ZIP download. `selected` bundles the checked rows' files; `all` bundles
+  // every report file matching the current filters (server re-resolves them,
+  // across all pages — not just the ones currently rendered).
+  const downloadZip = async (mode: 'selected' | 'all') => {
+    if (zipping) return;
+    setZipping(mode);
+    try {
+      if (mode === 'selected') {
+        await reportService.downloadZip({ fileIds: selectedFiles.map((f) => f.id) });
+      } else {
+        await reportService.downloadZip({ filters: serverFilters });
+      }
+    } catch {
+      toast.error('Could not prepare the ZIP download. Please try again.');
+    } finally {
+      setZipping(null);
+    }
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -125,16 +189,20 @@ export function ReportsPage() {
 
       {/* Server-side filter bar */}
       <Card>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Combobox options={storeOpts} value={fStore} onChange={setFStore} placeholder="All stores" label="Store" />
-          <DateRangePicker label="Uploaded date" value={fUploadRange} onChange={setFUploadRange} placeholder="All dates" />
+          <Combobox options={STORE_STATUS_OPTIONS} value={fStoreStatus} onChange={setFStoreStatus} placeholder="All" label="Store status" />
+          <Combobox options={SCHEDULE_STATUS_OPTIONS} value={fSchedule} onChange={setFSchedule} placeholder="All" label="Schedule status" />
+          <DateRangePicker label="Date range" value={fUploadRange} onChange={setFUploadRange} placeholder="All dates" />
         </div>
         {hasFilter && (
           <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
             {fStore && <FilterChip label={`Store: ${storeOpts.find((o) => o.value === fStore)?.label ?? fStore}`} onRemove={() => setFStore('')} />}
+            {fStoreStatus && <FilterChip label={`Store status: ${STORE_STATUS_OPTIONS.find((o) => o.value === fStoreStatus)?.label ?? fStoreStatus}`} onRemove={() => setFStoreStatus('')} />}
+            {fSchedule && <FilterChip label={`Schedule: ${SCHEDULE_STATUS_OPTIONS.find((o) => o.value === fSchedule)?.label ?? fSchedule}`} onRemove={() => setFSchedule('')} />}
             {fUploadRange?.from && (
               <FilterChip
-                label={`Uploaded: ${fUploadRange.from.toLocaleDateString('en-IN')}${fUploadRange.to ? ` – ${fUploadRange.to.toLocaleDateString('en-IN')}` : ''}`}
+                label={`Date: ${fUploadRange.from.toLocaleDateString('en-IN')}${fUploadRange.to ? ` – ${fUploadRange.to.toLocaleDateString('en-IN')}` : ''}`}
                 onRemove={() => setFUploadRange(undefined)}
               />
             )}
@@ -153,8 +221,30 @@ export function ReportsPage() {
           </p>
           <div className="flex items-center gap-3">
             <button onClick={() => setSelected(new Set())} className="text-sm font-medium text-slate-500 hover:text-slate-700">Clear</button>
-            <Button size="sm" icon={DownloadIcon} onClick={() => downloadFiles(selectedFiles)}>Download selected</Button>
+            <Button
+              size="sm"
+              icon={DownloadIcon}
+              onClick={() => downloadZip('selected')}
+              disabled={zipping !== null}
+            >
+              {zipping === 'selected' ? 'Preparing ZIP…' : 'Download selected as ZIP'}
+            </Button>
           </div>
+        </div>
+      )}
+
+      {/* Download-all toolbar — bundles every report matching the current filters */}
+      {!isLoading && total > 0 && (
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={DownloadIcon}
+            onClick={() => downloadZip('all')}
+            disabled={zipping !== null}
+          >
+            {zipping === 'all' ? 'Preparing ZIP…' : `Download all${hasFilter ? ' filtered' : ''} as ZIP`}
+          </Button>
         </div>
       )}
 
@@ -179,7 +269,7 @@ export function ReportsPage() {
                       className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer disabled:opacity-40"
                     />
                   </th>
-                  {['Candidate', 'Store', 'Fitness', 'Uploaded', 'Report'].map((h) => (
+                  {['Candidate', 'Store', 'Schedule', 'Fitness', 'Uploaded', 'Report'].map((h) => (
                     <th key={h} className="text-left px-5 py-3.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
@@ -191,6 +281,7 @@ export function ReportsPage() {
                   const files = filesFor(c);
                   const hasFiles = files.length > 0;
                   const checked = selected.has(c.id);
+                  const sched = scheduleStatusInfo(c.bookings?.[0]);
                   return (
                     <tr key={c.id} className={`transition-colors ${checked ? 'bg-primary-50/40' : 'hover:bg-slate-50/60'}`}>
                       <td className="px-5 py-4">
@@ -211,6 +302,13 @@ export function ReportsPage() {
                       <td className="px-5 py-4 text-slate-600 whitespace-nowrap">
                         {c.store?.name ?? '—'}
                         {c.store?.city?.name && <span className="text-xs text-slate-400"> · {c.store.city.name}</span>}
+                      </td>
+                      <td className="px-5 py-4">
+                        {sched ? (
+                          <Badge variant={sched.variant} size="sm">{sched.label}</Badge>
+                        ) : (
+                          <span className="text-xs text-slate-300">—</span>
+                        )}
                       </td>
                       <td className="px-5 py-4">
                         {latest ? (
