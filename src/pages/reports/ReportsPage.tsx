@@ -40,11 +40,12 @@ const FileIcon = (
 );
 
 // Store-status filter → candidate `storeStatus` param (Store.status enum).
-const STORE_STATUS_OPTIONS = [
-  { value: '', label: 'All stores' },
-  { value: 'ACTIVE', label: 'Active' },
-  { value: 'INACTIVE', label: 'Inactive' },
-];
+// Temporarily hidden — see the Reports filter bar.
+// const STORE_STATUS_OPTIONS = [
+//   { value: '', label: 'All stores' },
+//   { value: 'ACTIVE', label: 'Active' },
+//   { value: 'INACTIVE', label: 'Inactive' },
+// ];
 // Schedule-status filter → candidate `status` bucket. "Schedule" = booking
 // scheduled but not yet done; "Done" = report uploaded / fitness decided.
 const SCHEDULE_STATUS_OPTIONS = [
@@ -189,16 +190,20 @@ export function ReportsPage() {
 
       {/* Server-side filter bar */}
       <Card>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <Combobox options={storeOpts} value={fStore} onChange={setFStore} placeholder="All stores" label="Store" />
+          {/* Store status filter — temporarily hidden
           <Combobox options={STORE_STATUS_OPTIONS} value={fStoreStatus} onChange={setFStoreStatus} placeholder="All" label="Store status" />
+          */}
           <Combobox options={SCHEDULE_STATUS_OPTIONS} value={fSchedule} onChange={setFSchedule} placeholder="All" label="Schedule status" />
           <DateRangePicker label="Date range" value={fUploadRange} onChange={setFUploadRange} placeholder="All dates" />
         </div>
         {hasFilter && (
           <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
             {fStore && <FilterChip label={`Store: ${storeOpts.find((o) => o.value === fStore)?.label ?? fStore}`} onRemove={() => setFStore('')} />}
+            {/* Store status chip — temporarily hidden
             {fStoreStatus && <FilterChip label={`Store status: ${STORE_STATUS_OPTIONS.find((o) => o.value === fStoreStatus)?.label ?? fStoreStatus}`} onRemove={() => setFStoreStatus('')} />}
+            */}
             {fSchedule && <FilterChip label={`Schedule: ${SCHEDULE_STATUS_OPTIONS.find((o) => o.value === fSchedule)?.label ?? fSchedule}`} onRemove={() => setFSchedule('')} />}
             {fUploadRange?.from && (
               <FilterChip
