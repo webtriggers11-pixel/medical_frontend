@@ -38,6 +38,7 @@ export const candidatesService = {
     type?: string;
     clientId?: string;
     storeId?: string;
+    storeStatus?: string;
     zoneId?: string;
     cityId?: string;
     labId?: string;
@@ -59,6 +60,7 @@ export const candidatesService = {
         type: params.type || undefined,
         clientId: params.clientId || undefined,
         storeId: params.storeId || undefined,
+        storeStatus: params.storeStatus || undefined,
         zoneId: params.zoneId || undefined,
         cityId: params.cityId || undefined,
         labId: params.labId || undefined,

@@ -27,6 +27,7 @@ export const useCandidatesPage = (params: {
   type?: string;
   clientId?: string;
   storeId?: string;
+  storeStatus?: string;
   zoneId?: string;
   cityId?: string;
   labId?: string;

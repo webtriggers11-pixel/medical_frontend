@@ -45,6 +45,31 @@ export const reportService = {
     return res.data.data.url;
   },
 
+  // Bulk-download report files as a single ZIP. Pass `fileIds` for an explicit
+  // row selection, or `filters` to bundle every report matching the current
+  // filter set (server re-resolves the matching candidates, client-scoped).
+  downloadZip: async (body: {
+    fileIds?: string[];
+    filters?: {
+      storeId?: string;
+      storeStatus?: string;
+      status?: string;
+      uploadFrom?: string;
+      uploadTo?: string;
+      search?: string;
+    };
+  }): Promise<void> => {
+    const res = await api.post('/reports/download-zip', body, { responseType: 'blob' });
+    const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/zip' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'reports.zip';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
+
   getByCandidate: async (candidateId: string): Promise<Report[]> => {
     const res = await api.get<ApiResponse<Report[]>>(`/reports/candidate/${candidateId}`);
     return res.data.data;
