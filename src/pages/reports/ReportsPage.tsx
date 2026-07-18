@@ -54,6 +54,7 @@ const SCHEDULE_STATUS_OPTIONS = [
   { value: 'DONE', label: 'Done' },
 ];
 
+//test commit 
 // Derive the Schedule/Done bucket for the table column from the latest booking,
 // mirroring the server-side buckets: SCHEDULED → Schedule; a completed report
 // (uploaded / fit / unfit) → Done. Other states (requested / visited) show —.
