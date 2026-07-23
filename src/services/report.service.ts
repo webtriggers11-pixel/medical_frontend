@@ -59,7 +59,12 @@ export const reportService = {
       search?: string;
     };
   }): Promise<void> => {
-    const res = await api.post('/reports/download-zip', body, { responseType: 'blob' });
+    // timeout: 0 overrides the instance-wide 30s timeout — a full ZIP can be
+    // hundreds of MB and stream for minutes; axios would otherwise abort it.
+    const res = await api.post('/reports/download-zip', body, {
+      responseType: 'blob',
+      timeout: 0,
+    });
     const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/zip' }));
     const link = document.createElement('a');
     link.href = url;
